@@ -2,28 +2,99 @@ import 'package:flutter/material.dart';
 import 'package:younifirst_app/pages/Home_pages.dart';
 import 'package:younifirst_app/widgets/bottom_navbar.dart';
 
-class Login_pages extends StatelessWidget {
+class Login_pages extends StatefulWidget {
+  @override
+  _Login_pagesState createState() => _Login_pagesState();
+}
+
+class _Login_pagesState extends State<Login_pages> {
+  // Controllers untuk text field
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  
+  // State untuk loading
+  bool _isLoading = false;
+  
+  // Future untuk simulasi proses login
+  Future<bool> _loginProcess() async {
+    // Simulasi proses login (API call)
+    await Future.delayed(Duration(seconds: 2));
+    
+    // Di sini Anda bisa menambahkan logic validasi login
+    // Contoh validasi sederhana
+    if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+      return true;
+    }
+    return false;
+  }
+  
+  // Fungsi untuk handle login
+  Future<void> _handleLogin() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // Panggil proses login
+      bool success = await _loginProcess();
+      
+      if (success) {
+        // Jika login berhasil, navigasi ke halaman berikutnya
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BottomNavbar(),
+          ),
+        );
+      } else {
+        // Jika login gagal, tampilkan pesan error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Email atau password salah'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Handle error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Terjadi kesalahan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+  
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: Color(0xFFF5F5F5),
+      backgroundColor: Color(0xFFFFFFFF),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-
                 SizedBox(height: 40),
 
                 // 🔵 LOGO + ICON
                 Stack(
                   alignment: Alignment.center,
                   children: [
-
                     // Lingkaran biru
                     Container(
                       width: screenWidth * 0.45,
@@ -31,17 +102,14 @@ class Login_pages extends StatelessWidget {
                       decoration: BoxDecoration(
                         image: DecorationImage(
                           image: AssetImage('assets/images/background_login.png'),
-                          
                         ),
                       ),
                     ),
-
                     // Gambar utama (interaksi)
                     Image.asset(
                       'assets/images/icon_login.png',
                       width: screenWidth * 0.35,
                     ),
-
                     // Bintang
                     Positioned(
                       left: 20,
@@ -63,7 +131,7 @@ class Login_pages extends StatelessWidget {
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
-                ),
+                ),  
 
                 SizedBox(height: 30),
 
@@ -75,6 +143,7 @@ class Login_pages extends StatelessWidget {
                 SizedBox(height: 8),
 
                 TextField(
+                  controller: _emailController,
                   decoration: InputDecoration(
                     hintText: "Masukkan email SSO Anda",
                     filled: true,
@@ -97,6 +166,7 @@ class Login_pages extends StatelessWidget {
                 SizedBox(height: 8),
 
                 TextField(
+                  controller: _passwordController,
                   obscureText: true,
                   decoration: InputDecoration(
                     hintText: "Masukkan kata sandi Anda",
@@ -123,36 +193,37 @@ class Login_pages extends StatelessWidget {
 
                 SizedBox(height: 25),
 
-                // BUTTON
+                // BUTTON dengan animasi loading
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BottomNavbar(),
-                        ),
-                      );
-                    },
+                    onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF3D5AF1),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: Text(
-                      "MASUK",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    child: _isLoading
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            "MASUK",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
-                
 
                 SizedBox(height: 30),
               ],

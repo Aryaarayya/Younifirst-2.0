@@ -19,7 +19,7 @@ class _BottomNavbarState extends State<BottomNavbar> {
     EventPage(),
     TeamsPage(),
     BarangPage(),
-    ProfilPage(), 
+    ProfilPage(),   
   ];
 
   @override
