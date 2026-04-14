@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:younifirst_app/pages/Barang_pages.dart';
-import 'package:younifirst_app/pages/Event_pages.dart';
+import 'package:younifirst_app/pages/barang/barang_pages.dart';
+import 'package:younifirst_app/pages/event/Event_pages.dart';
 import 'package:younifirst_app/pages/Home_pages.dart';
-import 'package:younifirst_app/pages/Profil_pages.dart';
-import 'package:younifirst_app/pages/Teams_pages.dart';
+import 'package:younifirst_app/pages/profil/Profil_pages.dart';
+import 'package:younifirst_app/pages/team/Teams_pages.dart';
 
 class BottomNavbar extends StatefulWidget {
   @override

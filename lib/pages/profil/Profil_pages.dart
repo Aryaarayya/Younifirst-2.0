@@ -11,40 +11,8 @@ class ProfilPage extends StatelessWidget {
           child: Column(
             children: [
 
-              // 🔥 HEADER (LOGO + NOTIF)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Image.asset(
-                    'assets/images/logo.png',
-                    width: 35,
-                  ),
-
-                  Stack(
-                    children: [
-                      Icon(Icons.notifications_none, size: 28),
-
-                      Positioned(
-                        right: 0,
-                        child: Container(
-                          padding: EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            "2",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      )
-                    ],
-                  )
-                ],
-              ),
+              // 🔥 HEADER (FINAL - CONSISTENT)
+              profileHeader(),
 
               SizedBox(height: 20),
 
@@ -126,14 +94,14 @@ class ProfilPage extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Column(
+                  child: ListView(
                     children: [
-
                       menuItem(Icons.edit, "Edit Profil"),
                       menuItem(Icons.notifications_none, "Pengaturan Notifikasi"),
                       menuItem(Icons.security, "Keamanan Akun"),
                       menuItem(Icons.settings, "Pengaturan"),
-
+                      menuItem(Icons.help_outline, "Pusat Bantuan"),
+                      menuItem(Icons.logout, "Keluar"),
                     ],
                   ),
                 ),
@@ -141,6 +109,66 @@ class ProfilPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // 🔥 HEADER FINAL (CONSISTENT)
+  Widget profileHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+
+        // LOGO
+        Image.asset(
+          'assets/images/logo.png',
+          width: 35,
+        ),
+
+        // ACTION BUTTON
+        Row(
+          children: [
+            Stack(
+              children: [
+                Icon(Icons.notifications_none, size: 28),
+                Positioned(
+                  right: 0,
+                  child: Container(
+                    padding: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      "2",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                )
+              ],
+            )
+          ],
+        )
+      ],
+    );
+  }
+
+  // 🔵 ICON BULAT
+  Widget iconCircle(IconData icon) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Color(0xFFE0E7FF),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        icon,
+        size: 20,
+        color: Colors.blue,
       ),
     );
   }

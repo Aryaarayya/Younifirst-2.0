@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:younifirst_app/pages/Home_pages.dart';
+import 'package:younifirst_app/pages/lupa_katasandi/Lupa_katasandi.dart';
 import 'package:younifirst_app/widgets/bottom_navbar.dart';
 
 class Login_pages extends StatefulWidget {
@@ -185,11 +186,22 @@ class _Login_pagesState extends State<Login_pages> {
                 // LUPA PASSWORD
                 Align(
                   alignment: Alignment.centerRight,
-                  child: Text(
-                    "Lupa Kata Sandi?",
-                    style: TextStyle(color: Colors.grey),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context, 
+                        MaterialPageRoute(
+                          builder: (context) => Lupa_katasandi(),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      "Lupa Kata Sandi?",
+                      style: TextStyle(color: Colors.grey),
+                      ),
                   ),
                 ),
+                      
 
                 SizedBox(height: 25),
 
