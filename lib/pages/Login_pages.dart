@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:younifirst_app/pages/Home_pages.dart';
 import 'package:younifirst_app/pages/lupa_katasandi/Lupa_katasandi.dart';
 import 'package:younifirst_app/widgets/bottom_navbar.dart';
+import 'package:younifirst_app/services/auth_service.dart';
 
 class Login_pages extends StatefulWidget {
   @override
@@ -16,17 +17,22 @@ class _Login_pagesState extends State<Login_pages> {
   // State untuk loading
   bool _isLoading = false;
   
-  // Future untuk simulasi proses login
+  // Future untuk proses login api
   Future<bool> _loginProcess() async {
-    // Simulasi proses login (API call)
-    await Future.delayed(Duration(seconds: 2));
-    
-    // Di sini Anda bisa menambahkan logic validasi login
-    // Contoh validasi sederhana
-    if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
-      return true;
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      return false;
     }
-    return false;
+
+    try {
+      // Menggunakan login payload sesuai request (loginWithFirebase)
+      await AuthService.loginWithFirebase(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+      return true; // Jika sukses
+    } catch (e) {
+      throw e; // Lemparkan error agar ditangkap di _handleLogin
+    }
   }
   
   // Fungsi untuk handle login

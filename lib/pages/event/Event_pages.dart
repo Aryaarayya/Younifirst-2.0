@@ -1,7 +1,47 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:younifirst_app/models/Event_model.dart';
+import 'package:younifirst_app/services/api_services.dart';
 import 'package:younifirst_app/pages/event/TambahEvent_pages.dart';
 
-class EventPage extends StatelessWidget {
+class EventPage extends StatefulWidget {
+  @override
+  _EventPageState createState() => _EventPageState();
+}
+
+class _EventPageState extends State<EventPage> {
+
+  List<EventModel> events = [];
+  bool isLoading = true;
+  String errorMessage = "";
+
+  @override
+  void initState() {
+    super.initState();
+    fetchEvents();
+  }
+
+  Future<void> fetchEvents() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = "";
+    });
+
+    try {
+      final fetchedEvents = await ApiService.getEvents();
+      setState(() {
+        events = fetchedEvents;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = e.toString().replaceAll('Exception: ', '');
+        isLoading = false;
+      });
+      print("Fetch Error: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,29 +216,53 @@ class EventPage extends StatelessWidget {
   }
 
   Widget _buildPopularEventsList() {
+    if (isLoading) {
+      return const SizedBox(
+        height: 380,
+        child: Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
+    }
+
+    if (errorMessage.isNotEmpty) {
+      return SizedBox(
+        height: 380,
+        child: Center(
+            child: Text(errorMessage, style: const TextStyle(color: Colors.white))),
+      );
+    }
+
+    if (events.isEmpty) {
+      return const SizedBox(
+        height: 380,
+        child: Center(
+            child: Text("Belum ada event populer.", 
+                       style: TextStyle(color: Colors.white))),
+      );
+    }
+
+    // Tampilkan 2 atau 3 event di header
+    final popularEvents = events.take(3).toList();
+
     return SizedBox(
       height: 380,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          _buildEventCard(
-            imageUrl: 'assets/images/Younifirst.png',
-            title: "Seminar - Understanding Art'...",
-            date: "22 April 2026",
-            time: "09:00 - 10:00 WIB",
-            location: "Auditorium Politeknik Negeri Jember",
-            likes: "10",
-          ),
-          _buildEventCard(
-            imageUrl: 'assets/images/Younifirst.png',
-            title: "ARIRANG",
-            date: "18 April 2026 - 28 April",
-            time: "",
-            location: "Lapangan Hijau A3 P...",
-            likes: "28",
-          ),
-        ],
+      child: RefreshIndicator(
+        onRefresh: fetchEvents,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: popularEvents.length,
+          itemBuilder: (context, index) {
+            final ev = popularEvents[index];
+            return _buildEventCard(
+              imageUrl: ev.imageUrl, // Bisa ditambahkan network logic jika url valid
+              title: ev.title,
+              date: ev.date,
+              time: ev.time,
+              location: ev.location,
+              likes: ev.likesCount,
+            );
+          },
+        ),
       ),
     );
   }
@@ -211,6 +275,9 @@ class EventPage extends StatelessWidget {
     required String location,
     required String likes,
   }) {
+    // Mengecek apakah image_url berupa http link atau lokal asset
+    bool isNetworkImage = imageUrl.toLowerCase().startsWith('http');
+
     return Container(
       width: 260,
       margin: const EdgeInsets.only(right: 16),
@@ -237,13 +304,19 @@ class EventPage extends StatelessWidget {
               height: 200,
               width: double.infinity,
               color: Colors.grey[300], // Fallback if image fails
-              child: Image.asset(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(Icons.image, size: 50, color: Colors.grey);
-                },
-              ),
+              child: isNetworkImage
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                    )
+                  : Image.asset(
+                      'assets/images/Younifirst.png', // default placeholder
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.image, size: 50, color: Colors.grey),
+                    ),
             ),
           ),
           Padding(
@@ -266,7 +339,7 @@ class EventPage extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        time.isNotEmpty ? "$date • $time" : date,
+                        time.isNotEmpty ? "\$date • \$time" : date,
                         style: const TextStyle(
                             color: Colors.black54, fontSize: 11),
                       ),
@@ -298,7 +371,7 @@ class EventPage extends StatelessWidget {
                       children: [
                         Icon(Icons.favorite,
                             size: 16,
-                            color: likes == "28" ? Colors.red : Colors.grey),
+                            color: likes == "0" ? Colors.grey : Colors.red),
                         const SizedBox(width: 4),
                         Text(
                           likes,
@@ -412,6 +485,20 @@ class EventPage extends StatelessWidget {
   }
 
   Widget _buildEventGrid() {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (errorMessage.isNotEmpty) {
+      return Center(
+          child: IconButton(
+              icon: Icon(Icons.refresh), onPressed: fetchEvents)); 
+    }
+
+    if (events.isEmpty) {
+      return const Center(child: Text("Tidak ada data."));
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: GridView.builder(
@@ -422,53 +509,19 @@ class EventPage extends StatelessWidget {
           crossAxisCount: 2,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
-          childAspectRatio: 0.65, // Adjust to match proportions
+          childAspectRatio: 0.65,
         ),
-        itemCount: 4,
+        itemCount: events.length,
         itemBuilder: (context, index) {
-          // Dummy data for grid items
-          List<Map<String, dynamic>> items = [
-            {
-              "title": "TECHSPRINT INNOVATIO...",
-              "date": "22 April 2026",
-              "time": "09:00 - 10:00 WIB",
-              "location": "Online",
-              "likes": "10",
-              "liked": false
-            },
-            {
-              "title": "AOM",
-              "date": "12 April 2026 - 24 April 2026",
-              "time": "",
-              "location": "Lapangan Hijau A3 Politeknik ...",
-              "likes": "11",
-              "liked": true
-            },
-            {
-              "title": "Loading...",
-              "date": "Loading...",
-              "time": "",
-              "location": "Loading...",
-              "likes": "-",
-              "liked": false
-            },
-            {
-              "title": "Loading...",
-              "date": "Loading...",
-              "time": "",
-              "location": "Loading...",
-              "likes": "-",
-              "liked": false
-            },
-          ];
-
+          final ev = events[index];
           return _buildMiniEventCard(
-            title: items[index]["title"],
-            date: items[index]["date"],
-            time: items[index]["time"],
-            location: items[index]["location"],
-            likes: items[index]["likes"],
-            liked: items[index]["liked"],
+            imageUrl: ev.imageUrl,
+            title: ev.title,
+            date: ev.date,
+            time: ev.time,
+            location: ev.location,
+            likes: ev.likesCount,
+            liked: int.tryParse(ev.likesCount) != null && int.parse(ev.likesCount) > 0, // dummy logic for liked statis
           );
         },
       ),
@@ -476,6 +529,7 @@ class EventPage extends StatelessWidget {
   }
 
   Widget _buildMiniEventCard({
+    required String imageUrl,
     required String title,
     required String date,
     required String time,
@@ -483,8 +537,8 @@ class EventPage extends StatelessWidget {
     required String likes,
     required bool liked,
   }) {
-    // Determine if it's a "skeleton" item based on loading text
     bool isSkeleton = title == "Loading...";
+    bool isNetworkImage = imageUrl.toLowerCase().startsWith('http');
 
     return Container(
       decoration: BoxDecoration(
@@ -512,12 +566,19 @@ class EventPage extends StatelessWidget {
               color: Colors.grey[300],
               child: isSkeleton
                   ? null
-                  : Image.asset(
-                      'assets/images/Younifirst.png', // dummy
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.image, color: Colors.grey),
-                    ),
+                  : (isNetworkImage
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.image, color: Colors.grey),
+                        )
+                      : Image.asset(
+                          'assets/images/Younifirst.png', // dummy placeholder
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.image, color: Colors.grey),
+                        )),
             ),
           ),
           Padding(
@@ -547,9 +608,11 @@ class EventPage extends StatelessWidget {
                     Expanded(
                       child: isSkeleton
                           ? Container(
-                              height: 10, color: Colors.grey[300], margin: EdgeInsets.only(bottom: 2))
+                              height: 10,
+                              color: Colors.grey[300],
+                              margin: EdgeInsets.only(bottom: 2))
                           : Text(
-                              time.isNotEmpty ? "$date • $time" : date,
+                              time.isNotEmpty ? "\$date • \$time" : date,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -594,7 +657,8 @@ class EventPage extends StatelessWidget {
                                 : (liked ? Colors.red : Colors.grey)),
                         const SizedBox(width: 4),
                         isSkeleton
-                            ? Container(height: 10, width: 10, color: Colors.grey[300])
+                            ? Container(
+                                height: 10, width: 10, color: Colors.grey[300])
                             : Text(
                                 likes,
                                 style: const TextStyle(
@@ -608,7 +672,9 @@ class EventPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isSkeleton ? Colors.grey[400] : const Color(0xFF3D5AFE),
+                        color: isSkeleton
+                            ? Colors.grey[400]
+                            : const Color(0xFF3D5AFE),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -620,7 +686,8 @@ class EventPage extends StatelessWidget {
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold)),
                           if (isSkeleton)
-                            Container(width: 20, height: 8, color: Colors.grey[300]),
+                            Container(
+                                width: 20, height: 8, color: Colors.grey[300]),
                           const SizedBox(width: 4),
                           const Icon(Icons.arrow_forward,
                               color: Colors.white, size: 10),
