@@ -422,13 +422,7 @@ class _EventPageState extends State<EventPage> {
                     ),
                     Row(
                       children: [
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                          onPressed: onDelete,
-                        ),
-                        const SizedBox(width: 12),
+                        // Ikon delete dihapus
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 8),
@@ -723,14 +717,7 @@ class _EventPageState extends State<EventPage> {
                     ),
                     Row(
                       children: [
-                        if (!isSkeleton)
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 16),
-                            onPressed: onDelete,
-                          ),
-                        if (!isSkeleton) const SizedBox(width: 8),
+                        // Ikon delete dihapus
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 6),
