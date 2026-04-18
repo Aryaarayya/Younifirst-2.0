@@ -1,4 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:younifirst_app/services/api_services.dart';
+import 'package:younifirst_app/services/auth_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TambahEventPage extends StatefulWidget {
   @override
@@ -6,374 +11,493 @@ class TambahEventPage extends StatefulWidget {
 }
 
 class _TambahEventPageState extends State<TambahEventPage> {
-  // State untuk Tag Terkait
-  List<String> _selectedTags = [];
-  final List<String> _availableTags = [
-    'Seminar', 'Webinar', 'Konser', 'Pameran',
-    'Turnamen', 'Festival', 'Online', 'Offline',
-    'Umum', 'Hanya Mahasiswa'
+  String _selectedCategory = '';
+  final List<String> _categories = [
+    'Kompetisi', 'Seminar', 'Pameran',
+    'Turnamen', 'Konser'
   ];
 
-  int _jenisTiket = 1; // 1 = Gratis, 2 = Berbayar
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _dateStartController = TextEditingController();
+  final TextEditingController _timeStartController = TextEditingController();
+  final TextEditingController _dateEndController = TextEditingController();
+  final TextEditingController _timeEndController = TextEditingController();
+
+  bool _isLoading = false;
+  String? _userId; // Untuk menyimpan ID user (String, misal: USRBSEW4XN)
+
+  final ImagePicker _picker = ImagePicker();
+  Uint8List? _selectedImageBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? idFromPrefs = prefs.getString('user_id');
+
+    // Fallback: ambil dari AuthService jika SharedPreferences kosong
+    String? idFromMemory = AuthService.userId;
+
+    setState(() {
+      _userId = idFromPrefs ?? idFromMemory;
+    });
+
+    // Debug
+    print('🔍 user_id dari SharedPrefs: $idFromPrefs');
+    print('🔍 user_id dari AuthService: $idFromMemory');
+    print('✅ _userId yang dipakai: $_userId');
+  }
+
+  Future<void> _pickPoster() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1080,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      setState(() => _selectedImageBytes = bytes);
+    }
+  }
+
+  Future<void> _selectDate(TextEditingController controller) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        controller.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
+    }
+  }
+
+  Future<void> _selectTime(TextEditingController controller) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        controller.text = "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}";
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _locationController.dispose();
+    _descriptionController.dispose();
+    _dateStartController.dispose();
+    _timeStartController.dispose();
+    _dateEndController.dispose();
+    _timeEndController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitEvent() async {
+    // Validasi form
+    if (_titleController.text.isEmpty) {
+      _showSnackBar('Harap isi judul event');
+      return;
+    }
+    
+    if (_locationController.text.isEmpty) {
+      _showSnackBar('Harap isi lokasi event');
+      return;
+    }
+    
+    if (_selectedCategory.isEmpty) {
+      _showSnackBar('Harap pilih kategori event');
+      return;
+    }
+    
+    if (_dateStartController.text.isEmpty) {
+      _showSnackBar('Harap pilih tanggal mulai');
+      return;
+    }
+    
+    if (_timeStartController.text.isEmpty) {
+      _showSnackBar('Harap pilih waktu mulai');
+      return;
+    }
+    
+    if (_dateEndController.text.isEmpty) {
+      _showSnackBar('Harap pilih tanggal selesai');
+      return;
+    }
+    
+    if (_timeEndController.text.isEmpty) {
+      _showSnackBar('Harap pilih waktu selesai');
+      return; 
+    }
+
+    if (_userId == null) {
+      _showSnackBar('User ID Anda kosong. Mohon logout, lalu login kembali agar ID tersimpan.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Format datetime
+      final startDateTime = "${_dateStartController.text} ${_timeStartController.text}:00";
+      final endDateTime = "${_dateEndController.text} ${_timeEndController.text}:00";
+
+      // Mapping kategori ke ID
+      final Map<String, String> categoryMapping = {
+        'Kompetisi': '1',
+        'Seminar': '2',
+        'Pameran': '3',
+        'Turnamen': '4',
+        'Konser': '5',
+      };
+
+      // ✅ Data lengkap dengan created_by
+      final Map<String, String> data = {
+        'title': _titleController.text,
+        'location': _locationController.text,
+        'description': _descriptionController.text,
+        'category_id': categoryMapping[_selectedCategory] ?? '1',
+        'start_date': startDateTime,
+        'end_date': endDateTime,
+        'created_by': _userId.toString(), // ✅ Mengirim ID secara benar
+      };
+
+      // Debug: Lihat data yang dikirim
+      print('========================================');
+      print('📤 DATA YANG DIKIRIM:');
+      print(data);
+      print('📸 IMAGE: ${_selectedImageBytes != null ? "ADA (${_selectedImageBytes!.length} bytes)" : "TIDAK ADA"}');
+      print('========================================');
+
+      // Panggil API
+      final success = await ApiService.createEvent(data, _selectedImageBytes);
+      
+      if (success) {
+        _showSnackBar('Event berhasil diposting!', isError: false);
+        await Future.delayed(const Duration(seconds: 1));
+        Navigator.pop(context, true);
+      }
+      
+    } catch (e) {
+      print('❌ ERROR LENGKAP: $e');
+      String errorMessage = e.toString();
+      errorMessage = errorMessage.replaceAll('Exception: ', '');
+      errorMessage = errorMessage.replaceAll('Gagal membuat event: ', '');
+      _showSnackBar(errorMessage);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = true}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFFFFFF),
-
-      // 🔥 APPBAR (BACK + TITLE)
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0, // No shadow in image
+        elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          "Buat Event",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+        title: const Text(
+          "Posting Event",
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
         ),
         centerTitle: true,
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
-              // 🔥 UPLOAD POSTER (dengan tombol refresh biru)
-              Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 30, horizontal: 20),
-                    margin: EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Color(0xFFF0F4FA),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(Icons.image_search_outlined, size: 50, color: Colors.black87), // Assuming close icon
-                        SizedBox(height: 10),
-                        Text(
-                          "Tambahkan Poster Event",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          "Format jpg/jpeg/png, Maks 15MB",
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 12,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade600,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.refresh, color: Colors.white, size: 20),
-                        onPressed: () {},
-                      ),
-                    ),
-                  )
-                ],
+              // POSTER EVENT
+              const Text(
+                "Poster Event",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
-
-              SizedBox(height: 20),
-
-              // 🔥 NAMA EVENT
-              textField("Nama Event", suffix: "0/30"),
-
-              SizedBox(height: 16),
-
-              // 🔥 LOKASI
-              textField("Lokasi Event", icon: Icons.location_on),
-
-              SizedBox(height: 20),
-
-              // 🔥 SECTION TANGGAL DAN WAKTU PELAKSANAAN
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Tanggal dan Waktu Pelaksanaan",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          "Atur tanggal dan waktu event. Tambahkan hari jika berlangsung lebih dari satu.",
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                        ),
-                      ],
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: _pickPoster,
+                child: Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F4FA),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _selectedImageBytes == null 
+                          ? Colors.blue.shade300 
+                          : Colors.green.shade300,
+                      width: 1.5,
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Container(
-                    height: 36,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFFC3D4FB), // Light blue Background
-                        elevation: 0,
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        shape: RoundedRectangleBorder(
+                  child: _selectedImageBytes == null
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.add_photo_alternate_outlined, size: 40, color: Color(0xFF3D5AFE)),
+                            const SizedBox(height: 12),
+                            const Text(
+                              "Tambahkan Poster Event",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Format jpg/jpeg/png",
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        )
+                      : ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(color: Colors.blue.shade300),
+                          child: Image.memory(_selectedImageBytes!, fit: BoxFit.cover),
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // JUDUL EVENT
+              const Text(
+                "Judul Event",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              _buildTextField("Masukkan judul event...", controller: _titleController),
+
+              const SizedBox(height: 24),
+
+              // KATEGORI EVENT
+              const Text(
+                "Kategori Event",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "(pilih salah satu kategori yang paling sesuai dengan event)",
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: _categories.map((cat) {
+                  bool isSelected = _selectedCategory == cat;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedCategory = cat),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF3D5AFE) : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        cat,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black87,
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add, color: Colors.black87, size: 16),
-                          SizedBox(width: 4),
-                          Text("Tambah Hari", style: TextStyle(color: Colors.black87, fontSize: 12)),
-                        ],
-                      ),
                     ),
+                  );
+                }).toList(),
+              ),
+
+              const SizedBox(height: 24),
+
+              // TANGGAL & WAKTU MULAI
+              Row(
+                children: const [
+                  Icon(Icons.access_time, size: 16, color: Color(0xFF3D5AFE)),
+                  SizedBox(width: 8),
+                  Text(
+                    "Tanggal dan Waktu Mulai",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   )
                 ],
               ),
-
-              SizedBox(height: 16),
-
-              // 🔥 CARD HARI
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-
-                    // HEADER HARI
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("Hari 1", style: TextStyle(fontSize: 14)),
-                        Icon(Icons.close, size: 18),
-                      ],
-                    ),
-
-                    SizedBox(height: 16),
-
-                    textField("Tanggal Event Hari ke-1", icon: Icons.calendar_today_outlined),
-
-                    SizedBox(height: 12),
-
-                    Row(
-                      children: [
-                        Expanded(child: textField("Waktu Mulai", icon: Icons.access_time)),
-                        SizedBox(width: 10),
-                        Expanded(child: textField("Waktu Selesai", icon: Icons.access_time)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: 16),
-
-              // 🔥 RADIO GRATIS / BERBAYAR
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Radio(
-                            value: 1, 
-                            groupValue: _jenisTiket, 
-                            onChanged: (int? v) { setState(() => _jenisTiket = 1); },
-                            activeColor: Colors.black,
-                          ),
-                          Text("Gratis", style: TextStyle(fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Radio(
-                            value: 2, 
-                            groupValue: _jenisTiket, 
-                            onChanged: (int? v) { setState(() => _jenisTiket = 2); },
-                            activeColor: Colors.black,
-                          ),
-                          Text("Berbayar", style: TextStyle(fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: 16),
-
-              // 🔥 LINK PENDAFTARAN
-              textField("Link Pendaftaran", icon: Icons.link),
-
-              SizedBox(height: 24),
-
-              // 🔥 BATAS TANGGAL DAN WAKTU PENDAFTARAN
-              Text("Batas Tanggal dan Waktu Pendaftaran", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              SizedBox(height: 4),
-              Text(
-                "Tentukan kapan pendaftaran dibuka dan ditutup.",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              SizedBox(height: 12),
-              
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: textField("Tanggal Mulai", icon: Icons.calendar_today_outlined)),
-                  SizedBox(width: 10),
-                  Expanded(child: textField("Waktu Mulai", icon: Icons.access_time)),
-                ],
-              ),
-              SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: textField("Tanggal Tutup", icon: Icons.calendar_today_outlined)),
-                  SizedBox(width: 10),
-                  Expanded(child: textField("Waktu Tutup", icon: Icons.access_time)),
+                  Expanded(child: _buildDateTimePickerTextField("2024-01-01", Icons.calendar_today_outlined, controller: _dateStartController)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildDateTimePickerTextField("14:30", Icons.access_time, controller: _timeStartController)),
                 ],
               ),
 
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-              // 🔥 TAG TERKAIT
-              Text("Tag Terkait", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              SizedBox(height: 4),
-              Text(
-                "Pilih atau ketuk tag yang sesuai dengan jenis event",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+              // TANGGAL & WAKTU SELESAI
+              Row(
+                children: const [
+                  Icon(Icons.access_time, size: 16, color: Color(0xFF3D5AFE)),
+                  SizedBox(width: 8),
+                  Text(
+                    "Tanggal dan Waktu Selesai",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  )
+                ],
               ),
-              SizedBox(height: 12),
-
-              Container(
-                padding: EdgeInsets.all(16),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _availableTags.map((tag) {
-                    bool isSelected = _selectedTags.contains(tag);
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          if (isSelected) {
-                            _selectedTags.remove(tag);
-                          } else {
-                            _selectedTags.add(tag);
-                          }
-                        });
-                      },
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.blue.shade100 : Color(0xFFC3CAF5),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: isSelected ? Colors.blue.shade600 : Colors.blue.shade300),
-                        ),
-                        child: Text(
-                          tag,
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _buildDateTimePickerTextField("2024-01-01", Icons.calendar_today_outlined, controller: _dateEndController)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildDateTimePickerTextField("18:00", Icons.access_time, controller: _timeEndController)),
+                ],
               ),
 
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-              // 🔥 KETERANGAN EVENT
+              // LOKASI EVENT
+              Row(
+                children: const [
+                  Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF3D5AFE)),
+                  SizedBox(width: 8),
+                  Text(
+                    "Lokasi Event",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  )
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildTextField("Masukkan lokasi event", controller: _locationController),
+
+              const SizedBox(height: 24),
+
+              // DESKRIPSI
+              const Text(
+                "Deskripsi",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
               TextField(
-                maxLines: 7,
+                controller: _descriptionController,
+                maxLines: 8,
                 decoration: InputDecoration(
-                  hintText: "Keterangan Event",
-                  hintStyle: TextStyle(color: Colors.black87, fontSize: 13, height: 1.5),
-                  suffixText: "0/1500  \n\n\n\n\n\n ", // hack for top right
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.all(16),
+                  hintText: "Jelaskan detail event...",
+                  hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                  contentPadding: const EdgeInsets.all(16),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.grey.shade400),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.grey.shade400),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.blue),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF3D5AFE), width: 2),
                   ),
                 ),
               ),
 
-              SizedBox(height: 24),
+              const SizedBox(height: 32),
 
-              // 🔥 MEDIA SOSIAL
-              Text("Media Sosial", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              SizedBox(height: 4),
-              Text(
-                "Tambahkan media sosial agar peserta mudah terhubung dengan Anda. (Opsional)",
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-              SizedBox(height: 16),
-              
-              Row(
-                children: [
-                  socialButton(Icons.camera_alt_outlined), // Placeholder for Instagram icon
-                  SizedBox(width: 16),
-                  socialButton(Icons.chat_bubble_outline), // Placeholder for WhatsApp/Chat icon
-                ],
-              ),
-
-              SizedBox(height: 40),
-
-              // 🔥 BUAT EVENT (Text in Center based on image)
-              Center(
-                child: Text(
-                  "Buat Event",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+              // POSTING BUTTON
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submitEvent,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3D5AFE),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "POSTING",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
                 ),
               ),
-              
-              SizedBox(height: 20),
+
+              const SizedBox(height: 16),
+
+              // INFO BANNER
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF2F9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD9E2F8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.edit_document, color: Color(0xFFB5701B), size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        "Submission event akan ditinjau oleh admin sebelum dipublikasikan.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.black87,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -381,42 +505,56 @@ class _TambahEventPageState extends State<TambahEventPage> {
     );
   }
 
-  // 🔥 SOCIAL MEDIA ROUND BUTTON
-  Widget socialButton(IconData icon) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: Color(0xFFF0F4FA),
-        shape: BoxShape.circle,
+  Widget _buildTextField(String hint, {TextEditingController? controller}) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade400),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade400),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3D5AFE), width: 2),
+        ),
       ),
-      child: Icon(icon, color: Colors.black87),
     );
   }
 
-  // 🔥 TEXTFIELD REUSABLE
-  Widget textField(String hint, {IconData? icon, String? suffix}) {
+  Widget _buildDateTimePickerTextField(String hint, IconData icon, {required TextEditingController controller}) {
     return TextField(
+      controller: controller,
+      readOnly: true,
+      onTap: () async {
+        if (icon == Icons.calendar_today_outlined) {
+          await _selectDate(controller);
+        } else {
+          await _selectTime(controller);
+        }
+      },
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.black87, fontSize: 13),
-        prefixIcon: icon != null ? Icon(icon, size: 20, color: Colors.black87) : null,
-        suffixText: suffix,
-        suffixStyle: TextStyle(fontSize: 12),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+        suffixIcon: Icon(icon, size: 20, color: const Color(0xFF3D5AFE)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade400)
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade400),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade400)
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade400),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.blue)
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3D5AFE), width: 2),
         ),
       ),
     );

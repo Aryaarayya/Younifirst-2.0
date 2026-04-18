@@ -254,12 +254,14 @@ class _EventPageState extends State<EventPage> {
           itemBuilder: (context, index) {
             final ev = popularEvents[index];
             return _buildEventCard(
+              id: ev.id,
               imageUrl: ev.imageUrl, // Bisa ditambahkan network logic jika url valid
               title: ev.title,
               date: ev.date,
               time: ev.time,
               location: ev.location,
               likes: ev.likesCount,
+              onDelete: () => _deleteEvent(ev.id),
             );
           },
         ),
@@ -267,13 +269,49 @@ class _EventPageState extends State<EventPage> {
     );
   }
 
+  Future<void> _deleteEvent(String id) async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Event'),
+        content: const Text('Apakah Anda yakin ingin menghapus event ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirm) return;
+
+    try {
+      await ApiService.deleteEvent(id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Event berhasil dihapus')),
+      );
+      fetchEvents();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
   Widget _buildEventCard({
+    required String id,
     required String imageUrl,
     required String title,
     required String date,
     required String time,
     required String location,
     required String likes,
+    required VoidCallback onDelete,
   }) {
     // Mengecek apakah image_url berupa http link atau lokal asset
     bool isNetworkImage = imageUrl.toLowerCase().startsWith('http');
@@ -382,25 +420,30 @@ class _EventPageState extends State<EventPage> {
                         ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3D5AFE),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: const [
-                          Text("Mulai",
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold)),
-                          SizedBox(width: 6),
-                          Icon(Icons.arrow_forward,
-                              color: Colors.white, size: 14),
-                        ],
-                      ),
+                    Row(
+                      children: [
+                        // Ikon delete dihapus
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3D5AFE),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: const [
+                              Text("Mulai",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                              SizedBox(width: 6),
+                              Icon(Icons.arrow_forward,
+                                  color: Colors.white, size: 14),
+                            ],
+                          ),
+                        ),
+                      ],
                     )
                   ],
                 )
@@ -515,6 +558,7 @@ class _EventPageState extends State<EventPage> {
         itemBuilder: (context, index) {
           final ev = events[index];
           return _buildMiniEventCard(
+            id: ev.id,
             imageUrl: ev.imageUrl,
             title: ev.title,
             date: ev.date,
@@ -522,6 +566,7 @@ class _EventPageState extends State<EventPage> {
             location: ev.location,
             likes: ev.likesCount,
             liked: int.tryParse(ev.likesCount) != null && int.parse(ev.likesCount) > 0, // dummy logic for liked statis
+            onDelete: () => _deleteEvent(ev.id),
           );
         },
       ),
@@ -529,6 +574,7 @@ class _EventPageState extends State<EventPage> {
   }
 
   Widget _buildMiniEventCard({
+    required String id,
     required String imageUrl,
     required String title,
     required String date,
@@ -536,6 +582,7 @@ class _EventPageState extends State<EventPage> {
     required String location,
     required String likes,
     required bool liked,
+    required VoidCallback onDelete,
   }) {
     bool isSkeleton = title == "Loading...";
     bool isNetworkImage = imageUrl.toLowerCase().startsWith('http');
@@ -668,31 +715,36 @@ class _EventPageState extends State<EventPage> {
                               ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isSkeleton
-                            ? Colors.grey[400]
-                            : const Color(0xFF3D5AFE),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          if (!isSkeleton)
-                            const Text("Mulai",
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold)),
-                          if (isSkeleton)
-                            Container(
-                                width: 20, height: 8, color: Colors.grey[300]),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.arrow_forward,
-                              color: Colors.white, size: 10),
-                        ],
-                      ),
+                    Row(
+                      children: [
+                        // Ikon delete dihapus
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSkeleton
+                                ? Colors.grey[400]
+                                : const Color(0xFF3D5AFE),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              if (!isSkeleton)
+                                const Text("Mulai",
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold)),
+                              if (isSkeleton)
+                                Container(
+                                    width: 20, height: 8, color: Colors.grey[300]),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.arrow_forward,
+                                  color: Colors.white, size: 10),
+                            ],
+                          ),
+                        ),
+                      ],
                     )
                   ],
                 )
