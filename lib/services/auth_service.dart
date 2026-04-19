@@ -5,8 +5,9 @@ import 'package:flutter/foundation.dart'; // import kIsWeb
 class AuthService {
   static const String baseUrl = 'https://unelusive-lylah-goodheartedly.ngrok-free.dev/api/login';
   
-  // Variabel untuk menyimpan token secara sementara di memori aplikasi
+  // Variabel untuk menyimpan token dan user id secara sementara di memori aplikasi
   static String? authToken;
+  static String? loggedInUserId;
 
   // Endpoint login menggunakan Firebase (sesuai req payload)
   static Future<Map<String, dynamic>> loginWithFirebase({
@@ -45,6 +46,16 @@ class AuthService {
         } else if (data['data'] != null && data['data']['token'] != null) {
           authToken = data['data']['token'];
         }
+
+        // Coba tangkap user_id jika dikembalikan oleh backend
+        if (data['user'] != null && data['user']['id'] != null) {
+          loggedInUserId = data['user']['id'].toString();
+        } else if (data['data'] != null && data['data']['user'] != null && data['data']['user']['id'] != null) {
+          loggedInUserId = data['data']['user']['id'].toString();
+        } else if (data['id'] != null) {
+          loggedInUserId = data['id'].toString();
+        }
+
         return data;
       } else {
         throw Exception('Gagal login Firebase: ${response.statusCode} - ${response.body}');
