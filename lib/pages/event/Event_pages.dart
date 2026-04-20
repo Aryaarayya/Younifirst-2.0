@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:younifirst_app/models/Event_model.dart';
-import 'package:younifirst_app/services/api_services.dart';
+import 'package:younifirst_app/services/event_api_service.dart';
 import 'package:younifirst_app/pages/event/TambahEvent_pages.dart';
+import 'package:younifirst_app/pages/event/UpdateEvent_pages.dart';
 
 class EventPage extends StatefulWidget {
   @override
@@ -28,7 +29,7 @@ class _EventPageState extends State<EventPage> {
     });
 
     try {
-      final fetchedEvents = await ApiService.getEvents();
+      final fetchedEvents = await EventApiService.getEvents();
       setState(() {
         events = fetchedEvents;
         isLoading = false;
@@ -291,7 +292,7 @@ class _EventPageState extends State<EventPage> {
     if (!confirm) return;
 
     try {
-      await ApiService.deleteEvent(id);
+      await EventApiService.deleteEvent(id);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Event berhasil dihapus')),
       );
@@ -316,8 +317,24 @@ class _EventPageState extends State<EventPage> {
     // Mengecek apakah image_url berupa http link atau lokal asset
     bool isNetworkImage = imageUrl.toLowerCase().startsWith('http');
 
-    return Container(
-      width: 260,
+    return GestureDetector(
+      onTap: () async {
+        if (id.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ID event tidak valid dari server')));
+          return;
+        }
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UpdateEventPage(eventId: id),
+          ),
+        );
+        if (result == true) {
+          fetchEvents(); // Refresh data if updated
+        }
+      },
+      child: Container(
+        width: 260,
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -377,7 +394,7 @@ class _EventPageState extends State<EventPage> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        time.isNotEmpty ? "\$date • \$time" : date,
+                        time.isNotEmpty ? "$date • $time" : date,
                         style: const TextStyle(
                             color: Colors.black54, fontSize: 11),
                       ),
@@ -452,6 +469,7 @@ class _EventPageState extends State<EventPage> {
           )
         ],
       ),
+    ),
     );
   }
 
@@ -587,8 +605,26 @@ class _EventPageState extends State<EventPage> {
     bool isSkeleton = title == "Loading...";
     bool isNetworkImage = imageUrl.toLowerCase().startsWith('http');
 
-    return Container(
-      decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: () async {
+        if (!isSkeleton) {
+          if (id.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ID event tidak valid dari server')));
+            return;
+          }
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UpdateEventPage(eventId: id),
+            ),
+          );
+          if (result == true) {
+            fetchEvents(); // Refresh data if updated
+          }
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
@@ -659,7 +695,7 @@ class _EventPageState extends State<EventPage> {
                               color: Colors.grey[300],
                               margin: EdgeInsets.only(bottom: 2))
                           : Text(
-                              time.isNotEmpty ? "\$date • \$time" : date,
+                              time.isNotEmpty ? "$date • $time" : date,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -753,6 +789,7 @@ class _EventPageState extends State<EventPage> {
           )
         ],
       ),
+    ),
     );
   }
 }
