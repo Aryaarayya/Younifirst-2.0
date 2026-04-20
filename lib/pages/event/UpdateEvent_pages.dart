@@ -100,7 +100,14 @@ class _UpdateEventPageState extends State<UpdateEventPage> {
           }
         }
 
-        _existingImageUrl = data['image_url'] ?? data['poster']; // Defaultnya kalau API memberi image_url atau poster
+        String rawImage = data['image_url'] ?? data['poster'] ?? ''; 
+        if (rawImage.isNotEmpty && !rawImage.startsWith('http') && !rawImage.startsWith('assets/')) {
+           String path = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
+           if (!path.startsWith('storage/')) path = 'storage/$path';
+           _existingImageUrl = 'https://unelusive-lylah-goodheartedly.ngrok-free.dev/$path';
+        } else {
+           _existingImageUrl = rawImage;
+        }
         _isFetchingDetail = false;
       });
     } catch (e) {
@@ -196,9 +203,8 @@ class _UpdateEventPageState extends State<UpdateEventPage> {
         'created_by': _userId ?? '', 
       };
 
-      if (_selectedImageBytes == null && _existingImageUrl != null) {
-        data['poster'] = _existingImageUrl!; // Kirim existing string URL
-      }
+      // Jika tidak ada gambar baru, kita TIDAK MENGIRIM field 'poster'.
+      // Biarkan backend tetap menyimpan foto yang lama.
 
       final success = await EventApiService.updateEvent(widget.eventId, data, _selectedImageBytes);
       

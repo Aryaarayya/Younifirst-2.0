@@ -147,10 +147,12 @@ class EventApiService {
       request.fields.addAll(data);
 
       if (imageBytes != null) {
-        String base64Image = base64Encode(imageBytes);
-        // Cek jika backend butuh prefix data uri, jika tidak hilangkan komentar berikut
-        // base64Image = "data:image/jpeg;base64,$base64Image"; 
-        request.fields['poster'] = base64Image;
+        request.files.add(http.MultipartFile.fromBytes(
+          'poster',
+          imageBytes,
+          filename: 'event_poster_update.jpg',
+          contentType: MediaType('image', 'jpeg'), 
+        ));
       }
 
       final streamedResponse = await request.send();

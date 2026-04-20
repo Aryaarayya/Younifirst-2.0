@@ -4,6 +4,8 @@ import 'package:younifirst_app/models/Event_model.dart';
 import 'package:younifirst_app/services/event_api_service.dart';
 import 'package:younifirst_app/pages/event/TambahEvent_pages.dart';
 import 'package:younifirst_app/pages/event/UpdateEvent_pages.dart';
+import 'package:younifirst_app/pages/event/EventDetail_pages.dart';
+import 'package:younifirst_app/pages/event/PopularEvent_pages.dart';
 
 class EventPage extends StatefulWidget {
   @override
@@ -31,7 +33,7 @@ class _EventPageState extends State<EventPage> {
     try {
       final fetchedEvents = await EventApiService.getEvents();
       setState(() {
-        events = fetchedEvents;
+        events = fetchedEvents; // Backend already sorts newest first
         isLoading = false;
       });
     } catch (e) {
@@ -80,13 +82,16 @@ class _EventPageState extends State<EventPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => TambahEventPage(),
             ),
           );
+          if (result == true) {
+            fetchEvents();
+          }
         },
         backgroundColor: const Color(0xFF3D5AFE),
         shape: RoundedRectangleBorder(
@@ -200,16 +205,21 @@ class _EventPageState extends State<EventPage> {
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: const [
-          Text(
+        children: [
+          const Text(
             "Popular Events 🔥",
             style: TextStyle(
                 color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          Text(
-            "LIHAT SEMUA",
-            style: TextStyle(
-                color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => PopularEventPage()));
+            },
+            child: const Text(
+              "LIHAT SEMUA",
+              style: TextStyle(
+                  color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -326,7 +336,7 @@ class _EventPageState extends State<EventPage> {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => UpdateEventPage(eventId: id),
+            builder: (context) => EventDetailPage(eventId: id),
           ),
         );
         if (result == true) {
@@ -478,20 +488,25 @@ class _EventPageState extends State<EventPage> {
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: const [
-          Text(
+        children: [
+          const Text(
             "Pilih berdasarkan Kategori ✨",
             style: TextStyle(
                 color: Colors.black87,
                 fontSize: 16,
                 fontWeight: FontWeight.bold),
           ),
-          Text(
-            "LIHAT SEMUA",
-            style: TextStyle(
-                color: Color(0xFF3D5AFE),
-                fontSize: 12,
-                fontWeight: FontWeight.bold),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => PopularEventPage()));
+            },
+            child: const Text(
+              "LIHAT SEMUA",
+              style: TextStyle(
+                  color: Color(0xFF3D5AFE),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -615,7 +630,7 @@ class _EventPageState extends State<EventPage> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => UpdateEventPage(eventId: id),
+              builder: (context) => EventDetailPage(eventId: id),
             ),
           );
           if (result == true) {
@@ -657,7 +672,7 @@ class _EventPageState extends State<EventPage> {
                               const Icon(Icons.image, color: Colors.grey),
                         )
                       : Image.asset(
-                          'assets/images/Younifirst.png', // dummy placeholder
+                          'assets/images/icon_login.png', // dummy placeholder
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               const Icon(Icons.image, color: Colors.grey),

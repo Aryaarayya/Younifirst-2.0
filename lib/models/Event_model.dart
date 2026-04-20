@@ -33,13 +33,27 @@ class EventModel {
       parsedDate = json['date'];
     }
 
+    String rawImage = json['image_url'] ?? json['poster'] ?? 'assets/images/icon_login.png';
+    String finalImageUrl = rawImage;
+    if (!rawImage.startsWith('http') && !rawImage.startsWith('assets/')) {
+      // Remove leading slash if any
+      String path = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
+      
+      // Jika path belum ada 'storage/', tambahkan
+      if (!path.startsWith('storage/')) {
+        path = 'storage/$path';
+      }
+      
+      finalImageUrl = 'https://unelusive-lylah-goodheartedly.ngrok-free.dev/$path';
+    }
+
     return EventModel(
       id: json['id']?.toString() ?? json['event_id']?.toString() ?? json['id_event']?.toString() ?? '',
       title: json['title'] ?? 'Tanpa Judul',
       date: parsedDate,
       time: json['time'] ?? parsedTime,
       location: json['location'] ?? 'Lokasi tidak diketahui',
-      imageUrl: json['image_url'] ?? json['poster'] ?? 'assets/images/Younifirst.png', // Default image sementara
+      imageUrl: finalImageUrl,
       likesCount: json['likes_count']?.toString() ?? '0',
     );
   }
