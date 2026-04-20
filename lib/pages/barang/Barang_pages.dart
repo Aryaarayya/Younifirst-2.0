@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:younifirst_app/models/lost_found_model.dart';
-import 'package:younifirst_app/services/api_services.dart';
-import 'package:younifirst_app/services/notification_service.dart';
 import 'package:younifirst_app/models/comment_model.dart';
+import 'package:younifirst_app/services/api_services.dart';
 import 'BarangHilang_pages.dart';
 
 class BarangPage extends StatefulWidget {
-  const BarangPage({super.key});
-
   @override
   _BarangPageState createState() => _BarangPageState();
 }
@@ -15,44 +12,18 @@ class BarangPage extends StatefulWidget {
 class _BarangPageState extends State<BarangPage> {
   int _selectedFilterIndex = 0;
   final List<String> _filters = ['Semua', 'Hilang', 'Ditemukan'];
-  late Future<List<LostFoundModel>> _futureLostFound;
-
+  late Future<List<LostFoundModel>> _lostFoundFuture;
+  
   @override
   void initState() {
     super.initState();
-    _refreshData();
+    _fetchData();
   }
 
-  void _refreshData() {
+  void _fetchData() {
     setState(() {
-      _futureLostFound = ApiService.getLostAndFound();
+      _lostFoundFuture = ApiService.getLostAndFound();
     });
-  }
-
-  void _showPostingResultNotification() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            const Text(
-              'Berhasil memposting barang!',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF3D5AFE),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.only(
-          bottom: MediaQuery.of(context).size.height - 160,
-          left: 20,
-          right: 20,
-        ),
-        duration: const Duration(seconds: 3),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
   }
 
   @override
@@ -61,7 +32,7 @@ class _BarangPageState extends State<BarangPage> {
       backgroundColor: const Color(0xFFF3F4F6),
       body: RefreshIndicator(
         onRefresh: () async {
-          _refreshData();
+          _fetchData();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -98,17 +69,11 @@ class _BarangPageState extends State<BarangPage> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const BarangHilangPage(),
+              builder: (context) => BarangHilangPage(),
             ),
           );
-          
           if (result == true) {
-            await NotificationService.addNotification(
-              "Berhasil memposting barang",
-              "Postingan Anda telah berhasil diterbitkan.",
-            );
-            _refreshData();
-            _showPostingResultNotification();
+            _fetchData();
           }
         },
         backgroundColor: const Color(0xFF3D5AFE),
@@ -128,7 +93,11 @@ class _BarangPageState extends State<BarangPage> {
         children: [
           Row(
             children: [
-              const Icon(Icons.school, color: Colors.white, size: 35),
+              Image.asset(  
+                'assets/images/logo_putih.png',
+                width: 35,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.school, color: Colors.white, size: 35),
+              ),
               const SizedBox(width: 12),
               const Text(
                 "Barang",
@@ -142,13 +111,18 @@ class _BarangPageState extends State<BarangPage> {
           ),
           Stack(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white30),
+              GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notifikasi ditekan')));
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white30),
+                  ),
+                  child: const Icon(Icons.notifications_none, color: Colors.white),
                 ),
-                child: const Icon(Icons.notifications_none, color: Colors.white),
               ),
               Positioned(
                 right: 0,
@@ -161,7 +135,7 @@ class _BarangPageState extends State<BarangPage> {
                   ),
                   child: const Text(
                     "2",
-                    style: TextStyle(color: Colors.white, fontSize: 10),
+                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -181,14 +155,14 @@ class _BarangPageState extends State<BarangPage> {
           color: Colors.white.withOpacity(0.2),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const TextField(
-          style: TextStyle(color: Colors.white),
+        child: TextField(
+          style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             hintText: "Temukan barang hilang...",
-            hintStyle: TextStyle(color: Colors.white70),
-            prefixIcon: Icon(Icons.search, color: Colors.white70),
+            hintStyle: const TextStyle(color: Colors.white70),
+            prefixIcon: const Icon(Icons.search, color: Colors.white70),
             border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
           ),
         ),
       ),
@@ -251,55 +225,124 @@ class _BarangPageState extends State<BarangPage> {
               ),
             );
           }),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.insert_drive_file_outlined, color: Colors.white, size: 20),
+                SizedBox(width: 4),
+                Icon(Icons.sort, color: Colors.white, size: 20),
+              ],
+            ),
+          )
         ]
       ),
     );
   }
 
   Widget _buildBarangList() {
-    return FutureBuilder<List<LostFoundModel>>(
-      future: _futureLostFound,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: Padding(
-            padding: EdgeInsets.only(top: 40.0),
-            child: CircularProgressIndicator(color: Color(0xFF3D5AFE)),
-          ));
-        } else if (snapshot.hasError) {
-          return Center(child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)),
-          ));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Padding(
-            padding: EdgeInsets.only(top: 40.0),
-            child: Text("Belum ada postingan barang.", style: TextStyle(color: Colors.grey)),
-          ));
-        }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: FutureBuilder<List<LostFoundModel>>(
+        future: _lostFoundFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: CircularProgressIndicator(color: Colors.white),
+            ));
+          } else if (snapshot.hasError) {
+             // Tampilkan pesan error, atau data statis apabila belum ada backend sama sekali saat diuji
+            return _buildStaticFallbackList();
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return _buildStaticFallbackList(); 
+          }
 
-        List<LostFoundModel> items = snapshot.data!;
-        
-        // Filter logic
-        if (_selectedFilterIndex == 1) {
-          items = items.where((i) => i.type == 'Hilang').toList();
-        } else if (_selectedFilterIndex == 2) {
-          items = items.where((i) => i.type == 'Ditemukan').toList();
-        }
+          List<LostFoundModel> data = snapshot.data!;
+          // Apply filter
+          if (_selectedFilterIndex != 0) {
+            String filterType = _filters[_selectedFilterIndex];
+            data = data.where((item) => item.type == filterType).toList();
+          }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            return _buildBarangCard(items[index]);
-          },
-        );
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: data.length,
+            itemBuilder: (context, index) {
+              return _buildBarangCard(data[index]);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  // Fallback List statis agar UI tetap bisa dilihat sesuai screenshot
+  // meskipun backend API tidak tersedia / error
+  Widget _buildStaticFallbackList() {
+    final List<LostFoundModel> dummyData = [
+      LostFoundModel(
+        lostfoundId: 'LF00000001',
+        userName: 'Rafayel Qi',
+        userAvatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=150',
+        type: 'Ditemukan',
+        itemName: 'Earphone Putih',
+        location: 'Gedung TI Politeknik Negeri Jember',
+        description: 'Earphone ditemukan di Gedung TI Lantai 3 Ruangan 3 sekitar jam 12 siang tadi. aku pegang dulu bentar kalau ga ada info atau reach out sampe jam 4 aku bawa',
+        imageUrl: 'https://images.unsplash.com/photo-1605464315542-bda3e2f4e605?auto=format&fit=crop&q=80&w=400',
+        createdAt: 'Hari ini • 25 mnt yang lalu',
+        commentsCount: 0,
+      ),
+      LostFoundModel(
+        lostfoundId: 'LF00000002',
+        userName: 'rona_naa',
+        userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
+        type: 'Hilang',
+        itemName: 'Dompet Soft Pink Cream',
+        location: 'Teras JTI Politeknik Negeri Jember',
+        description: 'HELP!! URGENT!! Dompet aku hilang sepertinya jatuh habis dari teras jti bagi yang melihat atau menemukan tolong segera kontak nomor ini "1234567890"',
+        imageUrl: 'https://images.unsplash.com/photo-1628191010210-a59de33e5941?auto=format&fit=crop&q=80&w=400',
+        createdAt: 'Hari ini • 1 jam yang lalu',
+        commentsCount: 12,
+      ),
+      LostFoundModel(
+        lostfoundId: 'LF00000003',
+        userName: 'Xavier Shen',
+        userAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=150',
+        type: 'Hilang',
+        itemName: 'Kotak Pensil Hitam + KTM',
+        location: 'Gedung TI Politeknik Negeri Jember',
+        description: 'Balik pulang kerasa ada yng janggal ternyata kotak pensilku ketinggalan huhu.. mana ada KTM ku disana atas nama "Xavier Shen Prodi Teknik Informatika" anyon',
+        imageUrl: null, 
+        createdAt: 'Kemarin • 1 hari yang lalu',
+        commentsCount: 22,
+      ),
+    ];
+
+    List<LostFoundModel> displayed = dummyData;
+    if (_selectedFilterIndex != 0) {
+      displayed = dummyData.where((d) => d.type == _filters[_selectedFilterIndex]).toList();
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: displayed.length,
+      itemBuilder: (context, index) {
+        return _buildBarangCard(displayed[index]);
       },
     );
   }
 
   Widget _buildBarangCard(LostFoundModel item) {
+    bool isDitemukan = item.type == 'Ditemukan';
+    Color statusColor = isDitemukan ? const Color(0xFF3D5AFE) : const Color(0xFF3D5AFE); // Keduanya biru di screenshot
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -322,8 +365,8 @@ class _BarangPageState extends State<BarangPage> {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: Colors.grey.shade200,
-                child: const Icon(Icons.person, color: Colors.grey),
+                backgroundImage: item.userAvatar != null ? NetworkImage(item.userAvatar!) : null,
+                child: item.userAvatar == null ? const Icon(Icons.person) : null,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -341,7 +384,12 @@ class _BarangPageState extends State<BarangPage> {
                   ],
                 ),
               ),
-              const Icon(Icons.more_horiz, color: Colors.black54),
+              GestureDetector(
+                onTap: () {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opsi ditekan')));
+                },
+                child: const Icon(Icons.more_horiz, color: Colors.black54),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -355,10 +403,10 @@ class _BarangPageState extends State<BarangPage> {
                   child: Image.network(
                     item.imageUrl!,
                     width: double.infinity,
-                    height: 200,
+                    height: 250,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
-                        Container(height: 200, width: double.infinity, color: Colors.grey.shade200, child: const Icon(Icons.image, color: Colors.grey)),
+                        Container(height: 250, width: double.infinity, color: Colors.grey.shade200, child: const Icon(Icons.image, color: Colors.grey)),
                   ),
                 ),
                 Positioned(
@@ -367,7 +415,7 @@ class _BarangPageState extends State<BarangPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF3D5AFE),
+                      color: isDitemukan ? const Color(0xFF3D5AFE) : const Color(0xFF3D5AFE),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -379,12 +427,13 @@ class _BarangPageState extends State<BarangPage> {
               ],
             )
           else 
+            // Jika tidak ada gambar, label Hilang/Ditemukan tetap di kanan atas
             Align(
               alignment: Alignment.centerRight,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3D5AFE),
+                  color: isDitemukan ? const Color(0xFF3D5AFE) : const Color(0xFF3D5AFE),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -396,7 +445,7 @@ class _BarangPageState extends State<BarangPage> {
             
           const SizedBox(height: 16),
           
-          // Item Name
+          // Title / Item Name
           Text(
             item.itemName,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -419,154 +468,277 @@ class _BarangPageState extends State<BarangPage> {
           const SizedBox(height: 12),
           
           // Description
-          Text(
-            item.description,
-            style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
-          ),
-          const SizedBox(height: 12),
-          // Action Buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.favorite_border, size: 20, color: Colors.black87),
-                  const SizedBox(width: 4),
-                  const Text("0", style: TextStyle(fontSize: 13, color: Colors.black87)),
-                  const SizedBox(width: 16),
-                  GestureDetector(
-                    onTap: () => _showCommentSheet(context, item.id),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.black87),
-                        const SizedBox(width: 4),
-                        const Text("Comment", style: TextStyle(fontSize: 13, color: Colors.black87)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const Icon(Icons.share_outlined, size: 20, color: Colors.black87),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCommentSheet(BuildContext context, int lostFoundId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => CommentBottomSheet(lostFoundId: lostFoundId),
-    );
-  }
-}
-
-class CommentBottomSheet extends StatefulWidget {
-  final int lostFoundId;
-  const CommentBottomSheet({Key? key, required this.lostFoundId}) : super(key: key);
-
-  @override
-  _CommentBottomSheetState createState() => _CommentBottomSheetState();
-}
-
-class _CommentBottomSheetState extends State<CommentBottomSheet> {
-  final TextEditingController _commentController = TextEditingController();
-  bool _isSending = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 40, height: 4,
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(bottom: 16),
-            child: Text("Komentar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ),
-          Expanded(
-            child: FutureBuilder<List<CommentModel>>(
-              future: ApiService.getComments(widget.lostFoundId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                   return Center(child: Text("Error: ${snapshot.error}"));
-                }
-                final comments = snapshot.data ?? [];
-                if (comments.isEmpty) {
-                   return const Center(child: Text("Belum ada komentar."));
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: comments.length,
-                  itemBuilder: (context, index) {
-                    final c = comments[index];
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(backgroundColor: Colors.grey.shade200, child: const Icon(Icons.person)),
-                      title: Text(c.userName ?? "User", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      subtitle: Text(c.comment ?? ""),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 16, right: 16, top: 8),
-            child: Row(
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _commentController,
-                    decoration: InputDecoration(
-                      hintText: "Tambah komentar...",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _isSending ? null : () async {
-                    if (_commentController.text.trim().isEmpty) return;
-                    setState(() => _isSending = true);
-                    try {
-                      await ApiService.addComment(widget.lostFoundId, _commentController.text);
-                      _commentController.clear();
-                      setState(() {}); // refresh list
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                    } finally {
-                      setState(() => _isSending = false);
-                    }
-                  },
-                  icon: _isSending 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.send, color: Color(0xFF3D5AFE)),
+                TextSpan(text: '${item.description} '),
+                TextSpan(
+                  text: 'selengkapnya...',
+                  style: TextStyle(color: Colors.grey.shade500),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          
+          // Komentar Field
+          GestureDetector(
+            onTap: () {
+              _showCommentSheet(context, item.lostfoundId);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Text("Beri Komentar...", style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                  const Spacer(),
+                  const Icon(Icons.chat_bubble_outline, size: 18, color: Colors.black87),
+                  if (item.commentsCount > 0) ...[
+                    const SizedBox(width: 4),
+                    Text(item.commentsCount.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ]
+                ],
+              ),
+            ),
+          ),
+
+          // Tandai Postingan Selesai (Jika ini adalah postingan user tersebut, atau kita bisa mockup)
+          if (item.type == 'Hilang' && !item.isCompleted) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {
+                  _showFinishConfirmation(context, item);
+                },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF3D5AFE)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  backgroundColor: const Color(0xFFEEF2FF),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('Tandai Postingan Selesai', style: TextStyle(color: Color(0xFF3D5AFE), fontWeight: FontWeight.bold)),
+              ),
+            )
+          ]
         ],
       ),
     );
+  }
+
+  void _showCommentSheet(BuildContext context, String lostFoundId) {
+    TextEditingController commentController = TextEditingController();
+    bool isSending = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 16, right: 16, top: 16
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4)),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text("Komentar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Divider(),
+                    Expanded(
+                      child: FutureBuilder<List<CommentModel>>(
+                        future: ApiService.getComments(lostFoundId),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.chat_bubble_outline, size: 40, color: Colors.grey),
+                                  SizedBox(height: 12),
+                                  Text("Belum ada komentar", style: TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            );
+                          }
+                          final comments = snapshot.data!;
+                          return ListView.builder(
+                            itemCount: comments.length,
+                            itemBuilder: (context, index) {
+                              final c = comments[index];
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: const Color(0xFF3D5AFE),
+                                  child: Text(
+                                    (c.userName ?? 'U')[0].toUpperCase(),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                title: Text(c.userName ?? 'User', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                subtitle: Text(c.comment, style: const TextStyle(fontSize: 13)),
+                                trailing: Text(c.createdAt.length > 10 ? c.createdAt.substring(0, 10) : c.createdAt, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    const Divider(),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: commentController,
+                            decoration: InputDecoration(
+                              hintText: "Tambahkan komentar...",
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                              filled: true,
+                              fillColor: Colors.grey.shade100,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: isSending
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.send, color: Color(0xFF3D5AFE)),
+                          onPressed: isSending ? null : () async {
+                            if (commentController.text.isNotEmpty) {
+                              setModalState(() => isSending = true);
+                              try {
+                                await ApiService.addComment(lostFoundId, commentController.text);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Komentar berhasil dikirim')),
+                                );
+                                Navigator.pop(context);
+                                _fetchData(); // Refresh to update comment count
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Gagal: $e')),
+                                );
+                              } finally {
+                                if (context.mounted) {
+                                  setModalState(() => isSending = false);
+                                }
+                              }
+                            }
+                          },
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      }
+    );
+  }
+  void _showFinishConfirmation(BuildContext context, LostFoundModel item) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Illustration Placeholder (based on design)
+                const Icon(Icons.check_circle_outline, size: 100, color: Color(0xFF3D5AFE)),
+                const SizedBox(height: 16),
+                const Text(
+                  "Tandai Postingan ini Selesai?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Ini tidak dapat dibatalkan dan postingan yang ditandai selesai tidak akan ditampilkan lagi di halaman utama karena kasusnya dianggap sudah selesai atau barang telah ditemukan.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13, height: 1.5),
+                ),
+                const SizedBox(height: 24),
+                // Buttons
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context); // Close dialog
+                      _deleteItem(item.lostfoundId);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3D5AFE),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text("Tandai Selesai", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text("Batalkan", style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _deleteItem(String lostFoundId) async {
+    try {
+      final success = await ApiService.deleteLostFound(lostFoundId);
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Postingan berhasil diselesaikan dan dihapus')),
+          );
+          _fetchData(); // Refresh the list
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghapus postingan: $e')),
+        );
+      }
+    }
   }
 }

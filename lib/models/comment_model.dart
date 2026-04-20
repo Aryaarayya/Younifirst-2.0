@@ -1,12 +1,12 @@
 class CommentModel {
-  final int id;
-  final int lostFoundId;
-  final int userId;
+  final String id; // Ubah dari int ke String
+  final String lostFoundId;
+  final String userId;
   final String comment;
   final String createdAt;
   final String updatedAt;
-  final String? userName; // Optional: untuk menampilkan nama user
-  final String? userAvatar; // Optional: untuk menampilkan foto profil user
+  final String? userName;
+  final String? userAvatar;
 
   CommentModel({
     required this.id,
@@ -21,27 +21,14 @@ class CommentModel {
 
   factory CommentModel.fromJson(Map<String, dynamic> json) {
     return CommentModel(
-      id: json['id'] ?? 0,
-      lostFoundId: json['lost_found_id'] ?? 0,
-      userId: json['user_id'] ?? 0,
+      id: (json['comment_id'] ?? json['id'] ?? '').toString(),
+      lostFoundId: (json['lostfound_id'] ?? '').toString(),
+      userId: (json['user_id'] ?? '').toString(),
       comment: json['comment'] ?? '',
       createdAt: json['created_at'] ?? '',
-      updatedAt: json['updated_at'] ?? '',
-      userName: json['user_name'] ?? json['user']?['name'],
-      userAvatar: json['user_avatar'] ?? json['user']?['profile_picture'],
+      updatedAt: json['update_at'] ?? json['updated_at'] ?? '',
+      userName: json['commenter_name'] ?? json['user_name'],
+      userAvatar: json['user_avatar'],
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'lost_found_id': lostFoundId,
-      'user_id': userId,
-      'comment': comment,
-      'created_at': createdAt,
-      'updated_at': updatedAt,
-      'user_name': userName,
-      'user_avatar': userAvatar,
-    };
   }
 }
