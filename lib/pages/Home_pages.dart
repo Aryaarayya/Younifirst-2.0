@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:younifirst_app/pages/event/PopularEvent_pages.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -64,8 +65,8 @@ class _HomePageState extends State<HomePage> {
                           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: const [
-                              Text(
+                            children: [
+                              const Text(
                                 "Popular Events 🔥",
                                 style: TextStyle(
                                   fontSize: 16,
@@ -73,12 +74,17 @@ class _HomePageState extends State<HomePage> {
                                   color: Colors.black87,
                                 ),
                               ),
-                              Text(
-                                "LIHAT SEMUA",
-                                style: TextStyle(
-                                  color: Color(0xFF3D5AFE),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(context, MaterialPageRoute(builder: (context) => PopularEventPage()));
+                                },
+                                child: const Text(
+                                  "LIHAT SEMUA",
+                                  style: TextStyle(
+                                    color: Color(0xFF3D5AFE),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
