@@ -558,7 +558,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildPopularEventsList() {
     return SizedBox(
-      height: 250,
+      height: 265, // Diubah menjadi lebih tinggi 15 pixel agar tak terpotong container
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -643,7 +643,7 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        time.isNotEmpty ? "\$date • \$time" : date,
+                        time.isNotEmpty ? "$date • $time" : date,
                         style: const TextStyle(color: Colors.black54, fontSize: 10),
                       ),
                     ),
