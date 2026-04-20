@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:younifirst_app/services/team_api_service.dart';
 
 class TambahTeamsPage extends StatefulWidget {
   @override
@@ -7,142 +8,109 @@ class TambahTeamsPage extends StatefulWidget {
 
 class _TambahTeamsPageState extends State<TambahTeamsPage> {
 
-  int memberSaatIni = 1;
-  int memberMax = 2;
-  int jumlahOrang = 1;
+  final _namaTimController = TextEditingController();
+  final _namaLombaController = TextEditingController();
+  final _maxAnggotaController = TextEditingController();
+  final _deskripsiController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _namaTimController.dispose();
+    _namaLombaController.dispose();
+    _maxAnggotaController.dispose();
+    _deskripsiController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitTeam() async {
+    if (_namaTimController.text.isEmpty || _namaLombaController.text.isEmpty || 
+        _maxAnggotaController.text.isEmpty || _deskripsiController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Harap isi semua kolom!')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final data = {
+      'team_name': _namaTimController.text,
+      'competition_name': _namaLombaController.text,
+      'max_member': int.tryParse(_maxAnggotaController.text) ?? 1,
+      'description': _deskripsiController.text,
+    };
+
+    try {
+      await TeamApiService.createTeam(data);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tim berhasil dibuat!')));
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFFFFFF),
+      backgroundColor: Colors.white,
 
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 1,
+        elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text("Buat Tim", style: TextStyle(color: Colors.black)),
+        title: const Text("Buat Tim", style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600)),
         centerTitle: true,
       ),
 
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            // 🔥 NAMA TIM
-            textField("Nama Tim", suffix: "0/20"),
-
-            SizedBox(height: 20),
-
-            // 🔥 JUMLAH MEMBER
-            Text("Jumlah Dibutuhkan", style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 4),
-            Text(
-              "Tentukan jumlah anggota yang kamu butuhkan.",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-
-            SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(child: counterBox("Member saat ini", memberSaatIni, (v) {
-                  setState(() => memberSaatIni = v);
-                })),
-                SizedBox(width: 10),
-                Expanded(child: counterBox("Member maksimal", memberMax, (v) {
-                  setState(() => memberMax = v);
-                })),
-              ],
-            ),
-
-            SizedBox(height: 20),
-
-            // 🔥 TANGGAL PENDAFTARAN
-            Text("Batas Tanggal Pendaftaran", style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 4),
-            Text(
-              "Tentukan kapan pendaftaran kandidat ditutup.",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-
-            SizedBox(height: 10),
-
-            textField("Tanggal Tutup", icon: Icons.calendar_today),
-
-            SizedBox(height: 20),
-
-            // 🔥 POSISI
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Posisi yang dibutuhkan", style: TextStyle(fontWeight: FontWeight.bold)),
-                OutlinedButton(
-                  onPressed: () {},
-                  child: Text("+ Tambah Posisi"),
-                )
-              ],
-            ),
-
-            SizedBox(height: 4),
-
-            Text(
-              "Tulis posisi/tugas yang kamu butuhkan serta ketentuan dasar untuk posisi tsb.",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-
-            SizedBox(height: 12),
-
-            posisiCard(),
-
-            SizedBox(height: 16),
-
-            // 🔥 LINK PENDAFTARAN
-            textField("Link Pendaftaran", icon: Icons.link),
-
-            SizedBox(height: 24),
-
-            // 🔥 INFORMASI LOMBA
-            Text("Informasi Lomba", style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 4),
-            Text(
-              "Tulis informasi lomba yang kamu dan tim-mu akan ikuti.",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
+            _buildLabel("Nama Tim"),
+            const SizedBox(height: 8),
+            _buildTextField("Masukkan nama tim", _namaTimController),
+            const SizedBox(height: 20),
             
-            SizedBox(height: 12),
-            textField("Nama Lomba"),
-            
-            SizedBox(height: 12),
-            textField("Nama Penyelenggara"),
+            _buildLabel("Nama Lomba"),
+            const SizedBox(height: 8),
+            _buildTextField("Contoh ; GEMASTIK 2026", _namaLombaController),
+            const SizedBox(height: 20),
 
-            SizedBox(height: 12),
-            textField("Link Postingan Lomba", icon: Icons.link),
+            _buildLabel("Max Anggota"),
+            const SizedBox(height: 8),
+            _buildTextField("0", _maxAnggotaController, keyboardType: TextInputType.number),
+            const SizedBox(height: 20),
 
-            SizedBox(height: 12),
-            textField("Tulis Hadiah Untuk Menarik Minat Anggota", icon: Icons.workspace_premium_outlined),
+            _buildLabel("Deksripsi"), // Using spelling from UI design
+            const SizedBox(height: 8),
+            _buildMultilineTextField(
+              "Masukkan deskripsi tim, peran yang dibutuhkan,\nserta kualifikasi atau keterampilan yang\ndiharapkan dari calon anggota.",
+              _deskripsiController
+            ),
+            const SizedBox(height: 30),
 
-            SizedBox(height: 30),
-
-            // 🔥 BUAT TIM BUTTON
-            Container(
+            // BUAT button
+            SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: _isLoading ? null : _submitTeam,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFC6D2F6), // light blue button color
+                  backgroundColor: const Color(0xFF3B5BFE), // darker blue like in image
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: Text(
-                  "Buat Tim",
+                child: _isLoading 
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                  "BUAT",
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -151,207 +119,98 @@ class _TambahTeamsPageState extends State<TambahTeamsPage> {
                 ),
               ),
             ),
+            
+            const SizedBox(height: 20),
 
-            SizedBox(height: 20),
+            // Info Card
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2FE), // light blue background
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                   Container(
+                     padding: const EdgeInsets.all(6),
+                     decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        shape: BoxShape.circle
+                     ),
+                     child: const Icon(Icons.edit_document, color: Colors.orange, size: 16),
+                   ),
+                   const SizedBox(width: 12),
+                   const Expanded(
+                     child: Text(
+                        "Submission tim akan ditinjau oleh admin sebelum dipublikasikan",
+                        style: TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.w500),
+                     ),
+                   )
+                ],
+              )
+            )
           ],
         ),
       ),
     );
   }
 
-  // 🔥 TEXTFIELD
-  Widget textField(String hint, {IconData? icon, String? suffix}) {
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87),
+    );
+  }
+
+  Widget _buildTextField(String hint, TextEditingController controller, {TextInputType keyboardType = TextInputType.text}) {
     return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.black87),
-        prefixIcon: icon != null ? Icon(icon, size: 20, color: Colors.black87) : null,
-        suffixText: suffix,
+        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade400)
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.black.withOpacity(0.6))
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade400)
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.black.withOpacity(0.6))
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.blue)
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3D5AFE), width: 1.5)
         ),
       ),
     );
   }
 
-  // 🔥 COUNTER BOX
-  Widget counterBox(String title, int value, Function(int) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: TextStyle(fontSize: 12)),
-        SizedBox(height: 6),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.blue),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-
-              IconButton(
-                icon: Icon(Icons.remove),
-                onPressed: () {
-                  if (value > 0) onChanged(value - 1);
-                },
-              ),
-
-              Text(value.toString()),
-
-              IconButton(
-                icon: Icon(Icons.add),
-                onPressed: () {
-                  onChanged(value + 1);
-                },
-              ),
-            ],
-          ),
+  Widget _buildMultilineTextField(String hint, TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      maxLines: 8,
+      maxLength: 500,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.black.withOpacity(0.6))
         ),
-      ],
-    );
-  }
-
-  // 🔥 CARD POSISI
-  Widget posisiCard() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-
-          // HEADER
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Posisi 1", style: TextStyle(fontWeight: FontWeight.bold)),
-              Icon(Icons.close, size: 20),
-            ],
-          ),
-
-          SizedBox(height: 10),
-
-          textField("Nama Posisi/Tugas", icon: Icons.work_outline),
-
-          SizedBox(height: 10),
-
-          // JUMLAH ORANG
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Jumlah Orang :", style: TextStyle(fontSize: 13)),
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.remove, size: 20),
-                    onPressed: () {
-                      if (jumlahOrang > 1) {
-                        setState(() => jumlahOrang--);
-                      }
-                    },
-                  ),
-                  Text(jumlahOrang.toString(), style: TextStyle(fontSize: 14)),
-                  IconButton(
-                    icon: Icon(Icons.add, size: 20),
-                    onPressed: () {
-                      setState(() => jumlahOrang++);
-                    },
-                  ),
-                ],
-              )
-            ],
-          ),
-
-          SizedBox(height: 10),
-
-          Text("Ketentuan :", style: TextStyle(fontSize: 13)),
-
-          SizedBox(height: 8),
-
-          ketentuanItem("Ketentuan 1"),
-          SizedBox(height: 6),
-          ketentuanItem("Ketentuan 2"),
-
-          SizedBox(height: 12),
-
-          // Tombol Tambah Ketentuan
-          Container(
-            width: double.infinity,
-            height: 45,
-            decoration: BoxDecoration(
-              color: Color(0xFFC6D2F6), // warna biru muda
-              border: Border.all(color: Colors.blue.shade300),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () {},
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add, color: Colors.blue.shade600, size: 18),
-                    SizedBox(width: 4),
-                    Text(
-                      "Tambah Ketentuan", 
-                      style: TextStyle(color: Colors.blue.shade600, fontWeight: FontWeight.w500)
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          SizedBox(height: 12),
-
-          Text("Bonus/Nilai Plus (opsional)", style: TextStyle(fontSize: 12)),
-          SizedBox(height: 8),
-
-          textField("Contoh : punya pengalaman kompetisi", icon: Icons.auto_awesome),
-
-        ],
-      ),
-    );
-  }
-
-  // 🔥 ITEM KETENTUAN
-  Widget ketentuanItem(String text) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.check_circle_outline, color: Colors.blue.shade600, size: 20),
-              SizedBox(width: 8),
-              Text(text, style: TextStyle(color: Colors.black87)),
-            ],
-          ),
-          Icon(Icons.close, size: 18, color: Colors.black87),
-        ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.black.withOpacity(0.6))
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3D5AFE), width: 1.5)
+        ),
       ),
     );
   }

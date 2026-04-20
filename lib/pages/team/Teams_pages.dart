@@ -1,7 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:younifirst_app/pages/team/Tambahteams_pages.dart';
+import 'package:younifirst_app/models/Teams_model.dart';
+import 'package:younifirst_app/services/team_api_service.dart';
 
-class TeamsPage extends StatelessWidget {
+class TeamsPage extends StatefulWidget {
+  @override
+  _TeamsPageState createState() => _TeamsPageState();
+}
+
+class _TeamsPageState extends State<TeamsPage> {
+  List<TeamModel> teams = [];
+  bool isLoading = true;
+  String errorMessage = "";
+
+  @override
+  void initState() {
+    super.initState();
+    fetchTeams();
+  }
+
+  Future<void> fetchTeams() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = "";
+    });
+
+    try {
+      final fetchedTeams = await TeamApiService.getTeams();
+      setState(() {
+        teams = fetchedTeams;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = e.toString().replaceAll('Exception: ', '');
+        isLoading = false;
+      });
+      print("Fetch Error: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,32 +219,60 @@ class TeamsPage extends StatelessWidget {
   }
 
   Widget _buildTeamList() {
+    if (isLoading) {
+      return const SizedBox(
+        height: 300,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (errorMessage.isNotEmpty) {
+      return SizedBox(
+        height: 300,
+        child: Center(
+            child: Text(errorMessage, style: const TextStyle(color: Colors.red))),
+      );
+    }
+
+    if (teams.isEmpty) {
+      return const SizedBox(
+        height: 300,
+        child: Center(
+            child: Text("Belum ada tim.", 
+                       style: TextStyle(color: Colors.black54))),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        children: [
-          teamCard(
-            title: "Cocomelon",
-            subtitle: "Lomba apa saja",
-            desc: "Pengembangan perangkat lunak",
-            status: "Open",
-            isOpen: true,
-            members: ["1", "2"],
-            total: "2/4 Anggota",
-            tags: ["UI/UX", "Backend"],
-          ),
-          const SizedBox(height: 16),
-          teamCard(
-            title: "Arirang",
-            subtitle: "Lomba apa saja",
-            desc: "Desain UI/UX",
-            status: "Full",
-            isOpen: false,
-            members: ["1", "2", "3", "4"],
-            total: "6/6 Anggota",
-            tags: ["Frontend", "Backend"],
-          ),
-        ],
+      child: RefreshIndicator(
+        onRefresh: fetchTeams,
+        child: ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: teams.length,
+          itemBuilder: (context, index) {
+            final t = teams[index];
+            // Dummy list members for now
+            List<String> dumpMembers = List.generate(t.joinedMembers > 0 ? t.joinedMembers : 1, (i) => i.toString());
+            // Safe max members
+            int maxMm = t.maxMembers > 0 ? t.maxMembers : 4;
+            
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: teamCard(
+                title: t.name,
+                subtitle: t.lombaName,
+                desc: t.description,
+                status: t.status,
+                isOpen: t.status.toLowerCase() == 'open',
+                members: dumpMembers,
+                total: "\${t.joinedMembers}/\$maxMm Anggota",
+                tags: ["General"], // Backend belum sedia tags, fallback
+              ),
+            );
+          },
+        ),
       ),
     );
   }
