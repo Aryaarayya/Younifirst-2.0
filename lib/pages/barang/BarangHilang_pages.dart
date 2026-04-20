@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:younifirst_app/services/api_services.dart';
 
 class BarangHilangPage extends StatefulWidget {
+  const BarangHilangPage({super.key});
+
   @override
   _BarangHilangPageState createState() => _BarangHilangPageState();
 }
@@ -48,7 +50,6 @@ class _BarangHilangPageState extends State<BarangHilangPage> {
       );
 
       if (result) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil memposting')));
         Navigator.pop(context, true); // return true to refresh list
       }
     } catch (e) {

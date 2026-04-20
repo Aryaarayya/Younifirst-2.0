@@ -1,40 +1,42 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:younifirst_app/models/Event_model.dart';
 import 'package:younifirst_app/models/lost_found_model.dart';
-import 'dart:io';import 'package:younifirst_app/services/auth_service.dart';
+import 'package:younifirst_app/models/comment_model.dart';
+import 'package:younifirst_app/services/auth_service.dart';
 
 class ApiService {
-  // Samakan dengan ngrok url agar bisa testing dari device/emulator
-  static const String baseUrl = 'https://unelusive-lylah-goodheartedly.ngrok-free.dev/api/events';
+  // Base URLs
+  static const String eventsBaseUrl = 'https://unelusive-lylah-goodheartedly.ngrok-free.dev/api/events';
+  static const String lostFoundBaseUrl = 'https://unelusive-lylah-goodheartedly.ngrok-free.dev/api/lostfound';
 
+  // ==================== EVENT APIs ====================
+  
   static Future<List<EventModel>> getEvents() async {
-    final url = Uri.parse('$baseUrl');
+    final url = Uri.parse(eventsBaseUrl);
     try {
-      // Menyiapkan headers dasar
       Map<String, String> headers = {
         'ngrok-skip-browser-warning': '69420',
         'Accept': 'application/json',
       };
 
-      // Menyisipkan token akses jika pengguna sudah berhasil login
       if (AuthService.authToken != null) {
         headers['Authorization'] = 'Bearer ${AuthService.authToken}';
       }
 
-      final response = await http.get(
-        url,
-        headers: headers,
-      );
+      final response = await http.get(url, headers: headers);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         final dynamic decodedData = jsonDecode(response.body);
         List<dynamic> jsonList = [];
 
         if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
-           jsonList = decodedData['data'];
+          jsonList = decodedData['data'];
         } else if (decodedData is List) {
-           jsonList = decodedData;
+          jsonList = decodedData;
         }
 
         return jsonList.map((data) => EventModel.fromJson(data)).toList();
@@ -46,11 +48,71 @@ class ApiService {
     }
   }
 
-  // --- REST API LOST & FOUND ---
+  static Future<bool> createEvent(Map<String, String> data, Uint8List? imageBytes) async {
+    final url = Uri.parse('$eventsBaseUrl/add');
+    try {
+      var request = http.MultipartRequest('POST', url);
 
-  // 1. Get List Lost and Found
+      request.headers.addAll({
+        'ngrok-skip-browser-warning': '69420',
+        'Accept': 'application/json',
+      });
+      
+      if (AuthService.authToken != null) {
+        request.headers['Authorization'] = 'Bearer ${AuthService.authToken}';
+      }
+
+      request.fields.addAll(data);
+
+      if (imageBytes != null) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'poster',
+          imageBytes,
+          filename: 'event_poster.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        ));
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return true;
+      } else {
+        throw Exception('Status ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Gagal membuat event: $e');
+    }
+  }
+
+  static Future<bool> deleteEvent(String id) async {
+    final url = Uri.parse('$eventsBaseUrl/$id');
+    try {
+      Map<String, String> headers = {
+        'ngrok-skip-browser-warning': '69420',
+        'Accept': 'application/json',
+      };
+      if (AuthService.authToken != null) {
+        headers['Authorization'] = 'Bearer ${AuthService.authToken}';
+      }
+
+      final response = await http.delete(url, headers: headers);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return true;
+      } else {
+        throw Exception('Status ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Gagal menghapus event: $e');
+    }
+  }
+
+  // ==================== LOST & FOUND APIs ====================
+
   static Future<List<LostFoundModel>> getLostAndFound() async {
-    final url = Uri.parse('https://unelusive-lylah-goodheartedly.ngrok-free.dev/api/lostfound');
+    final url = Uri.parse(lostFoundBaseUrl);
     try {
       Map<String, String> headers = {
         'ngrok-skip-browser-warning': '69420',
@@ -61,7 +123,7 @@ class ApiService {
       }
 
       final response = await http.get(url, headers: headers);
-      if (response.statusCode == 200) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         final dynamic decodedData = jsonDecode(response.body);
         List<dynamic> jsonList = [];
         if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
@@ -78,15 +140,37 @@ class ApiService {
     }
   }
 
-  // 2. Add Lost and Found (Support Multipart untuk Gambar)
+  static Future<bool> deleteLostAndFound(dynamic id) async {
+    final url = Uri.parse('$lostFoundBaseUrl/$id');
+    try {
+      Map<String, String> headers = {
+        'ngrok-skip-browser-warning': '69420',
+        'Accept': 'application/json',
+      };
+      if (AuthService.authToken != null) {
+        headers['Authorization'] = 'Bearer ${AuthService.authToken}';
+      }
+
+      final response = await http.delete(url, headers: headers);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return true;
+      } else {
+        throw Exception('Status ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Gagal menghapus: $e');
+    }
+  }
+
   static Future<bool> addLostAndFound({
     required String type,
     required String itemName,
     required String location,
     required String description,
     File? imageFile,
+    Uint8List? imageBytes,
   }) async {
-    final url = Uri.parse('https://unelusive-lylah-goodheartedly.ngrok-free.dev/api/lostfound/add');
+    final url = Uri.parse('$lostFoundBaseUrl/add');
     try {
       var request = http.MultipartRequest('POST', url);
       
@@ -102,18 +186,24 @@ class ApiService {
       request.fields['location'] = location;
       request.fields['description'] = description;
       
-      // Gunakan user ID yang disave pada AuthService saat login, berikan fallback kosong jika tidak ada (untuk trigger validasi riil dari DB)
       request.fields['user_id'] = AuthService.loggedInUserId ?? ''; 
-      request.fields['status_id'] = '1'; // Asumsi status default 1 (Aktif) kecuali ada di AuthService juga
+      request.fields['status_id'] = '1';
 
       if (imageFile != null) {
         request.files.add(
           await http.MultipartFile.fromPath('image', imageFile.path),
         );
+      } else if (imageBytes != null) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'image',
+          imageBytes,
+          filename: 'lost_found_image.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        ));
       }
 
       final response = await request.send();
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         return true;
       } else {
         final respStr = await response.stream.bytesToString();
@@ -124,9 +214,8 @@ class ApiService {
     }
   }
 
-  // 3. Get Comments for Lost and Found
   static Future<List<CommentModel>> getComments(int lostFoundId) async {
-    final url = Uri.parse('https://unelusive-lylah-goodheartedly.ngrok-free.dev/api/lostfound/$lostFoundId/comments');
+    final url = Uri.parse('$lostFoundBaseUrl/$lostFoundId/comments');
     try {
       Map<String, String> headers = {
         'ngrok-skip-browser-warning': '69420',
@@ -137,7 +226,7 @@ class ApiService {
       }
 
       final response = await http.get(url, headers: headers);
-      if (response.statusCode == 200) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         final dynamic decodedData = jsonDecode(response.body);
         List<dynamic> jsonList = [];
         if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
@@ -154,9 +243,8 @@ class ApiService {
     }
   }
 
-  // 4. Add Comment
   static Future<bool> addComment(int lostFoundId, String commentMessage) async {
-    final url = Uri.parse('https://unelusive-lylah-goodheartedly.ngrok-free.dev/api/lostfound/$lostFoundId/comments');
+    final url = Uri.parse('$lostFoundBaseUrl/$lostFoundId/comments');
     try {
       Map<String, String> headers = {
         'Accept': 'application/json',
@@ -174,7 +262,7 @@ class ApiService {
         })
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         return true;
       } else {
         throw Exception('Status ${response.statusCode}: ${response.body}');

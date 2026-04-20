@@ -60,32 +60,3 @@ class LostFoundModel {
     };
   }
 }
-
-class CommentModel {
-  final int id;
-  final int? userId;
-  final String userName;
-  final String? userAvatar;
-  final String comment;
-  final String? createdAt;
-
-  CommentModel({
-    required this.id,
-    this.userId,
-    required this.userName,
-    this.userAvatar,
-    required this.comment,
-    this.createdAt,
-  });
-
-  factory CommentModel.fromJson(Map<String, dynamic> json) {
-    return CommentModel(
-      id: json['id'] ?? 0,
-      userId: json['user_id'],
-      userName: json['user']?['name'] ?? json['user_name'] ?? 'Unknown User',
-      userAvatar: json['user']?['profile_picture'] ?? json['user_avatar'],
-      comment: json['comment'] ?? json['body'] ?? '',
-      createdAt: json['created_at'],
-    );
-  }
-}
