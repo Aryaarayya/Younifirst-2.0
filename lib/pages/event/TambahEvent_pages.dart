@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:younifirst_app/services/api_services.dart';
+import 'package:younifirst_app/services/event_api_service.dart';
 import 'package:younifirst_app/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -184,7 +184,7 @@ class _TambahEventPageState extends State<TambahEventPage> {
       print('========================================');
 
       // Panggil API
-      final success = await ApiService.createEvent(data, _selectedImageBytes);
+      final success = await EventApiService.createEvent(data, _selectedImageBytes);
       
       if (success) {
         _showSnackBar('Event berhasil diposting!', isError: false);
