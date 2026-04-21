@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:younifirst_app/pages/Home_pages.dart';
+import 'package:younifirst_app/pages/lupa_katasandi/AturUlangKatasandi_pages.dart';
 
 class VerifikasiKode extends StatefulWidget {
   final String email;
@@ -63,7 +63,7 @@ class _VerifikasiKodeState extends State<VerifikasiKode> {
         _showSnackBar('Verifikasi berhasil!', Colors.green);
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomePage()),
+          MaterialPageRoute(builder: (context) => AturUlangKatasandiPage()),
         );
       } else {
         _showSnackBar('Kode verifikasi salah', Colors.red);
