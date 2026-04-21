@@ -653,31 +653,95 @@ class _EventPageState extends State<EventPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
-            ),
-            child: Container(
-              height: 100,
-              width: double.infinity,
-              color: Colors.grey[300],
-              child: isSkeleton
-                  ? null
-                  : (isNetworkImage
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.image, color: Colors.grey),
-                        )
-                      : Image.asset(
-                          'assets/images/icon_login.png', // dummy placeholder
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.image, color: Colors.grey),
-                        )),
-            ),
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                child: Container(
+                  height: 100,
+                  width: double.infinity,
+                  color: Colors.grey[300],
+                  child: isSkeleton
+                      ? null
+                      : (isNetworkImage
+                          ? Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.image, color: Colors.grey),
+                            )
+                          : Image.asset(
+                              'assets/images/icon_login.png', // dummy placeholder
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.image, color: Colors.grey),
+                            )),
+                ),
+              ),
+              if (!isSkeleton)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.8),
+                      shape: BoxShape.circle,
+                    ),
+                    child: PopupMenuButton<String>(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.more_vert, size: 20, color: Colors.black87),
+                      onSelected: (value) async {
+                        if (value == 'update') {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => UpdateEventPage(eventId: id),
+                            ),
+                          );
+                          if (result == true) {
+                            fetchEvents();
+                          }
+                        } else if (value == 'bagikan') {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Bagikan belum tersedia")));
+                        } else if (value == 'laporkan') {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Laporkan belum tersedia")));
+                        } else if (value == 'hapus') {
+                          onDelete();
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => [
+                        const PopupMenuItem(
+                          value: 'update',
+                          child: Row(
+                            children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Update Event')],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'bagikan',
+                          child: Row(
+                            children: [Icon(Icons.share, size: 18), SizedBox(width: 8), Text('Bagikan')],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'laporkan',
+                          child: Row(
+                            children: [Icon(Icons.flag_outlined, size: 18), SizedBox(width: 8), Text('Laporkan')],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'hapus',
+                          child: Row(
+                            children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Hapus Event', style: TextStyle(color: Colors.red))],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ),
           Padding(
             padding: const EdgeInsets.all(10.0),
