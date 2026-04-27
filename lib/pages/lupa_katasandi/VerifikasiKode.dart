@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:younifirst_app/pages/Home_pages.dart';
+import 'package:younifirst_app/services/auth_service.dart';
+import 'package:younifirst_app/pages/lupa_katasandi/AturUlangKataSandi.dart';
 
 class VerifikasiKode extends StatefulWidget {
   final String email;
@@ -20,8 +21,8 @@ class _VerifikasiKodeState extends State<VerifikasiKode> {
   @override
   void initState() {
     super.initState();
-    _otpControllers = List.generate(6, (index) => TextEditingController());
-    _focusNodes = List.generate(6, (index) => FocusNode());
+    _otpControllers = List.generate(4, (index) => TextEditingController());
+    _focusNodes = List.generate(4, (index) => FocusNode());
     _startResendTimer();
   }
   
@@ -45,8 +46,8 @@ class _VerifikasiKodeState extends State<VerifikasiKode> {
   }
   
   void _handleVerification() async {
-    if (_otpCode.length != 6) {
-      _showSnackBar('Masukkan kode verifikasi 6 digit', Colors.red);
+    if (_otpCode.length != 4) {
+      _showSnackBar('Masukkan kode verifikasi 4 digit', Colors.red);
       return;
     }
     
@@ -55,22 +56,24 @@ class _VerifikasiKodeState extends State<VerifikasiKode> {
     });
     
     try {
-      // Simulasi verifikasi OTP
-      await Future.delayed(Duration(seconds: 2));
+      await AuthService.verifyOtp(widget.email, _otpCode);
       
-      // Contoh: kode benar = 123456
-      if (_otpCode == '123456') {
-        _showSnackBar('Verifikasi berhasil!', Colors.green);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage()),
-        );
-      } else {
-        _showSnackBar('Kode verifikasi salah', Colors.red);
-        _clearOtp();
-      }
+      if (!mounted) return;
+      
+      _showSnackBar('Verifikasi berhasil!', Colors.green);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AturUlangKataSandi(
+            email: widget.email,
+            otp: _otpCode,
+          ),
+        ),
+      );
     } catch (e) {
-      _showSnackBar('Terjadi kesalahan: $e', Colors.red);
+      if (!mounted) return;
+      _showSnackBar(e.toString().replaceAll('Exception: ', ''), Colors.red);
+      _clearOtp();
     } finally {
       if (mounted) {
         setState(() {
@@ -211,10 +214,10 @@ class _VerifikasiKodeState extends State<VerifikasiKode> {
               // OTP Input Fields
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(6, (index) {
+                children: List.generate(4, (index) {
                   return SizedBox(
-                    width: 50,
-                    height: 60,
+                    width: 70,
+                    height: 80,
                     child: TextField(
                       controller: _otpControllers[index],
                       focusNode: _focusNodes[index],
@@ -243,14 +246,14 @@ class _VerifikasiKodeState extends State<VerifikasiKode> {
                         ),
                       ),
                       onChanged: (value) {
-                        if (value.length == 1 && index < 5) {
+                        if (value.length == 1 && index < 3) {
                           _focusNodes[index + 1].requestFocus();
                         } else if (value.isEmpty && index > 0) {
                           _focusNodes[index - 1].requestFocus();
                         }
                         
                         // Auto verify when all fields filled
-                        if (_otpCode.length == 6) {
+                        if (_otpCode.length == 4) {
                           _handleVerification();
                         }
                       },

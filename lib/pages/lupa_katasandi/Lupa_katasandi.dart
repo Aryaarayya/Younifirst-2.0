@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:younifirst_app/pages/lupa_katasandi/VerifikasiKode.dart';
+import 'package:younifirst_app/services/auth_service.dart';
 
 
 class Lupa_katasandi extends StatefulWidget {
@@ -8,16 +9,16 @@ class Lupa_katasandi extends StatefulWidget {
 }
 
 class _Lupa_katasandiState extends State<Lupa_katasandi> {
-
   final TextEditingController _emailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     super.dispose();
   }
-
-  void _handleKirim() {
+  
+  void _handleKirim() async {
     if (_emailController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -28,14 +29,38 @@ class _Lupa_katasandiState extends State<Lupa_katasandi> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VerifikasiKode(
-          email: _emailController.text,
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await AuthService.forgotPassword(_emailController.text);
+      
+      if (!mounted) return;
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VerifikasiKode(
+            email: _emailController.text,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -134,13 +159,22 @@ class _Lupa_katasandiState extends State<Lupa_katasandi> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: Text(
-                  "KIRIM",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                child: _isLoading
+                    ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text(
+                        "KIRIM",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ],

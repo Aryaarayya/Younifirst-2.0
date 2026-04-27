@@ -1,5 +1,5 @@
 class CommentModel {
-  final String id; // Ubah dari int ke String
+  final String id;
   final String lostFoundId;
   final String userId;
   final String comment;
@@ -7,6 +7,11 @@ class CommentModel {
   final String updatedAt;
   final String? userName;
   final String? userAvatar;
+  
+  // Custom fields for UI nesting
+  String? parentId;
+  String commentTextOnly;
+  List<CommentModel> replies = [];
 
   CommentModel({
     required this.id,
@@ -17,7 +22,23 @@ class CommentModel {
     required this.updatedAt,
     this.userName,
     this.userAvatar,
-  });
+    this.parentId,
+    this.commentTextOnly = '',
+    List<CommentModel>? replies,
+  }) : this.replies = replies ?? [] {
+    // Parse parentId from comment if it follows pattern [re:ID]
+    if (comment.startsWith('[re:')) {
+      int endIdx = comment.indexOf(']');
+      if (endIdx != -1) {
+        parentId = comment.substring(4, endIdx);
+        commentTextOnly = comment.substring(endIdx + 1).trim();
+      } else {
+        commentTextOnly = comment;
+      }
+    } else {
+      commentTextOnly = comment;
+    }
+  }
 
   factory CommentModel.fromJson(Map<String, dynamic> json) {
     return CommentModel(

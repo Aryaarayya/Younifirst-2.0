@@ -5,7 +5,7 @@ import 'package:younifirst_app/models/notification_model.dart';
 class NotificationService {
   static const String _notificationsKey = 'notifications';
 
-  static Future<void> addNotification(String title, String message) async {
+  static Future<void> addNotification(String title, String message, {String? type, String? targetId}) async {
     final prefs = await SharedPreferences.getInstance();
     List<String> notificationsJson = prefs.getStringList(_notificationsKey) ?? [];
 
@@ -14,6 +14,8 @@ class NotificationService {
       title: title,
       message: message,
       timestamp: DateTime.now(),
+      type: type,
+      targetId: targetId,
     );
 
     notificationsJson.add(jsonEncode(notification.toJson()));
@@ -43,6 +45,8 @@ class NotificationService {
         title: notifications[index].title,
         message: notifications[index].message,
         timestamp: notifications[index].timestamp,
+        type: notifications[index].type,
+        targetId: notifications[index].targetId,
         isRead: true,
       );
 

@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:younifirst_app/models/lost_found_model.dart';
 import 'package:younifirst_app/models/comment_model.dart';
 import 'package:younifirst_app/services/api_services.dart';
+import 'package:younifirst_app/services/auth_service.dart';
+import 'package:younifirst_app/services/notification_service.dart';
+import 'package:younifirst_app/utils/profanity_filter.dart';
+import 'package:younifirst_app/pages/notification_page.dart';
 import 'BarangHilang_pages.dart';
 
 class BarangPage extends StatefulWidget {
@@ -14,15 +18,69 @@ class _BarangPageState extends State<BarangPage> {
   final List<String> _filters = ['Semua', 'Hilang', 'Ditemukan'];
   late Future<List<LostFoundModel>> _lostFoundFuture;
   
+  // Real-time search variables
+  final TextEditingController _searchController = TextEditingController();
+  List<LostFoundModel> _allData = [];
+  List<LostFoundModel> _filteredData = [];
+  bool _isLoadingData = true;
+  int _unreadNotificationCount = 0;
+  
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    _fetchInitialData();
+    _refreshNotificationCount();
   }
 
-  void _fetchData() {
+  void _refreshNotificationCount() async {
+    int count = await NotificationService.getUnreadCount();
+    if (mounted) {
+      setState(() {
+        _unreadNotificationCount = count;
+      });
+    }
+  }
+
+  void _fetchInitialData() {
+    setState(() => _isLoadingData = true);
+    _lostFoundFuture = ApiService.getLostAndFound();
+    _lostFoundFuture.then((data) {
+      if (mounted) {
+        setState(() {
+          _allData = data;
+          _applyFilterAndSearch();
+          _isLoadingData = false;
+        });
+      }
+    }).catchError((e) {
+      if (mounted) {
+        setState(() => _isLoadingData = false);
+      }
+    });
+  }
+
+  // Rename the old _fetchData to keep compatibility with parts of the code that call it
+  void _fetchData() => _fetchInitialData();
+
+  void _applyFilterAndSearch() {
+    String query = _searchController.text.toLowerCase();
+    
     setState(() {
-      _lostFoundFuture = ApiService.getLostAndFound();
+      _filteredData = _allData.where((item) {
+        // Apply Filter Category
+        bool matchesFilter = true;
+        if (_selectedFilterIndex != 0) {
+          matchesFilter = item.type == _filters[_selectedFilterIndex];
+        }
+        
+        // Apply Search Query
+        bool matchesSearch = item.itemName.toLowerCase().contains(query) || 
+                              item.description.toLowerCase().contains(query) ||
+                              item.location.toLowerCase().contains(query) ||
+                              item.userName.toLowerCase().contains(query);
+                              
+        return matchesFilter && matchesSearch;
+      }).toList();
     });
   }
 
@@ -74,6 +132,7 @@ class _BarangPageState extends State<BarangPage> {
           );
           if (result == true) {
             _fetchData();
+            _refreshNotificationCount();
           }
         },
         backgroundColor: const Color(0xFF3D5AFE),
@@ -112,8 +171,12 @@ class _BarangPageState extends State<BarangPage> {
           Stack(
             children: [
               GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notifikasi ditekan')));
+                onTap: () async {
+                   await Navigator.push(
+                     context,
+                     MaterialPageRoute(builder: (context) => NotificationPage()),
+                   );
+                   _refreshNotificationCount();
                 },
                 child: Container(
                   padding: const EdgeInsets.all(8),
@@ -124,21 +187,22 @@ class _BarangPageState extends State<BarangPage> {
                   child: const Icon(Icons.notifications_none, color: Colors.white),
                 ),
               ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    "2",
-                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              if (_unreadNotificationCount > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      _unreadNotificationCount > 9 ? "9+" : _unreadNotificationCount.toString(),
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
@@ -156,11 +220,22 @@ class _BarangPageState extends State<BarangPage> {
           borderRadius: BorderRadius.circular(10),
         ),
         child: TextField(
+          controller: _searchController,
+          onChanged: (value) => _applyFilterAndSearch(),
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             hintText: "Temukan barang hilang...",
             hintStyle: const TextStyle(color: Colors.white70),
             prefixIcon: const Icon(Icons.search, color: Colors.white70),
+            suffixIcon: _searchController.text.isNotEmpty 
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.white70),
+                  onPressed: () {
+                    _searchController.clear();
+                    _applyFilterAndSearch();
+                  },
+                )
+              : null,
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
           ),
@@ -193,6 +268,7 @@ class _BarangPageState extends State<BarangPage> {
                   setState(() {
                     _selectedFilterIndex = index;
                   });
+                  _applyFilterAndSearch();
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -247,37 +323,43 @@ class _BarangPageState extends State<BarangPage> {
   Widget _buildBarangList() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: FutureBuilder<List<LostFoundModel>>(
-        future: _lostFoundFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: CircularProgressIndicator(color: Colors.white),
-            ));
-          } else if (snapshot.hasError) {
-             // Tampilkan pesan error, atau data statis apabila belum ada backend sama sekali saat diuji
-            return _buildStaticFallbackList();
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return _buildStaticFallbackList(); 
-          }
+      child: _isLoadingData 
+        ? const Center(child: Padding(
+            padding: EdgeInsets.all(32.0),
+            child: CircularProgressIndicator(color: Colors.white),
+          ))
+        : _filteredData.isEmpty
+          ? _searchController.text.isNotEmpty || _selectedFilterIndex != 0
+            ? _buildNoResultsFound()
+            : _buildStaticFallbackList() // If really empty on server, show fallback for demo
+          : ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _filteredData.length,
+              itemBuilder: (context, index) {
+                return _buildBarangCard(_filteredData[index]);
+              },
+            ),
+    );
+  }
 
-          List<LostFoundModel> data = snapshot.data!;
-          // Apply filter
-          if (_selectedFilterIndex != 0) {
-            String filterType = _filters[_selectedFilterIndex];
-            data = data.where((item) => item.type == filterType).toList();
-          }
-
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: data.length,
-            itemBuilder: (context, index) {
-              return _buildBarangCard(data[index]);
-            },
-          );
-        },
+  Widget _buildNoResultsFound() {
+    return Center(
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          Icon(Icons.search_off, size: 80, color: Colors.white.withOpacity(0.5)),
+          const SizedBox(height: 16),
+          Text(
+            "Hasil tidak ditemukan",
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Coba kata kunci lain atau filter berbeda",
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        ],
       ),
     );
   }
@@ -508,8 +590,8 @@ class _BarangPageState extends State<BarangPage> {
             ),
           ),
 
-          // Tandai Postingan Selesai (Jika ini adalah postingan user tersebut, atau kita bisa mockup)
-          if (item.type == 'Hilang' && !item.isCompleted) ...[
+          // Tandai Postingan Selesai (Hanya jika ini adalah postingan user tersebut)
+          if (!item.isCompleted && item.userId == AuthService.loggedInUserId) ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -537,127 +619,382 @@ class _BarangPageState extends State<BarangPage> {
   void _showCommentSheet(BuildContext context, String lostFoundId) {
     TextEditingController commentController = TextEditingController();
     bool isSending = false;
+    CommentModel? replyingTo;
+    CommentModel? editingComment;
+    Set<String> expandedCommentIds = {};
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-                left: 16, right: 16, top: 16
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.6,
-                child: Column(
-                  children: [
-                    Container(
-                      width: 40, height: 4,
-                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4)),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text("Komentar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const Divider(),
-                    Expanded(
-                      child: FutureBuilder<List<CommentModel>>(
-                        future: ApiService.getComments(lostFoundId),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
-                          }
-                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(Icons.chat_bubble_outline, size: 40, color: Colors.grey),
-                                  SizedBox(height: 12),
-                                  Text("Belum ada komentar", style: TextStyle(color: Colors.grey)),
-                                ],
-                              ),
-                            );
-                          }
-                          final comments = snapshot.data!;
-                          return ListView.builder(
-                            itemCount: comments.length,
-                            itemBuilder: (context, index) {
-                              final c = comments[index];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: const Color(0xFF3D5AFE),
-                                  child: Text(
-                                    (c.userName ?? 'U')[0].toUpperCase(),
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                                title: Text(c.userName ?? 'User', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                subtitle: Text(c.comment, style: const TextStyle(fontSize: 13)),
-                                trailing: Text(c.createdAt.length > 10 ? c.createdAt.substring(0, 10) : c.createdAt, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                    const Divider(),
-                    Row(
+              child: Column(
+                children: [
+                   // Handle bar
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4)),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: commentController,
-                            decoration: InputDecoration(
-                              hintText: "Tambahkan komentar...",
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                              filled: true,
-                              fillColor: Colors.grey.shade100,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
+                        const Text("Komentar postingan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                         IconButton(
-                          icon: isSending
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Icon(Icons.send, color: Color(0xFF3D5AFE)),
-                          onPressed: isSending ? null : () async {
-                            if (commentController.text.isNotEmpty) {
-                              setModalState(() => isSending = true);
-                              try {
-                                await ApiService.addComment(lostFoundId, commentController.text);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Komentar berhasil dikirim')),
-                                );
-                                Navigator.pop(context);
-                                _fetchData(); // Refresh to update comment count
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Gagal: $e')),
-                                );
-                              } finally {
-                                if (context.mounted) {
-                                  setModalState(() => isSending = false);
-                                }
-                              }
-                            }
-                          },
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
                         )
                       ],
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
+                  ),
+                  const Divider(height: 1),
+
+                  // Comment List
+                  Expanded(
+                    child: FutureBuilder<List<CommentModel>>(
+                      future: ApiService.getComments(lostFoundId),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) return Center(child: Text('Gagal: ${snapshot.error}'));
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                          return _buildEmptyComments();
+                        }
+
+                        // Organize comments into threads
+                        final allComments = snapshot.data!;
+                        final Map<String, CommentModel> commentMap = {for (var c in allComments) c.id: c};
+                        final List<CommentModel> rootComments = [];
+                        
+                        for (var c in allComments) {
+                          if (c.parentId != null && commentMap.containsKey(c.parentId)) {
+                            commentMap[c.parentId]!.replies.add(c);
+                          } else {
+                            rootComments.add(c);
+                          }
+                        }
+
+                        return ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          itemCount: rootComments.length,
+                          itemBuilder: (context, index) {
+                            return _buildThreadedComment(
+                              rootComments[index], 
+                              setModalState,
+                              expandedCommentIds,
+                              () => _fetchData(),
+                              (comment) {
+                                setModalState(() {
+                                  replyingTo = comment;
+                                  editingComment = null;
+                                  commentController.text = "";
+                                });
+                              },
+                              (comment) {
+                                setModalState(() {
+                                  editingComment = comment;
+                                  replyingTo = null;
+                                  commentController.text = comment.commentTextOnly;
+                                });
+                              }
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+
+                  // Input Field Section
+                  _buildCommentInput(
+                    commentController, 
+                    isSending, 
+                    replyingTo, 
+                    editingComment,
+                    () => setModalState(() { replyingTo = null; editingComment = null; commentController.clear(); }),
+                    () async {
+                      if (commentController.text.trim().isEmpty) return;
+                      
+                      // ── PROFANITY FILTER CHECK ──
+                      List<String> badWords = ProfanityFilter.check(commentController.text);
+                      if (badWords.isNotEmpty) {
+                        _showProfanityWarning(context, badWords);
+                        return;
+                      }
+                      // ────────────────────────────
+
+                      setModalState(() => isSending = true);
+                      try {
+                        bool success;
+                        if (editingComment != null) {
+                          success = await ApiService.updateComment(editingComment!.id, commentController.text);
+                        } else {
+                          success = await ApiService.addComment(lostFoundId, commentController.text, parentId: replyingTo?.id);
+                        }
+
+                        if (success) {
+                          // Tambahkan notifikasi lokal
+                          await NotificationService.addNotification(
+                            editingComment != null ? 'Komentar Diperbarui' : 'Komentar Berhasil', 
+                            editingComment != null ? 'Anda telah memperbarui komentar.' : 'Anda telah mengomentari postingan.',
+                            type: 'comment',
+                            targetId: lostFoundId
+                          );
+
+                          commentController.clear();
+                          setModalState(() {
+                            isSending = false;
+                            replyingTo = null;
+                            editingComment = null;
+                          });
+                          // Refresh logic
+                          setModalState(() {}); 
+                          _fetchData(); 
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        setModalState(() => isSending = false);
+                      }
+                    }
+                  ),
+                ],
               ),
             );
           },
         );
       }
     );
+  }
+
+  Widget _buildEmptyComments() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text("Belum ada komentar", style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+          const SizedBox(height: 8),
+          Text("Jadilah yang pertama untuk berinteraksi!", style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThreadedComment(
+    CommentModel comment, 
+    StateSetter setModalState,
+    Set<String> expandedIds,
+    VoidCallback onRefresh,
+    Function(CommentModel) onReply,
+    Function(CommentModel) onEdit,
+  ) {
+    bool hasReplies = comment.replies.isNotEmpty;
+    bool isExpanded = expandedIds.contains(comment.id);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildCommentItem(comment, false, onRefresh, onReply, onEdit),
+        if (hasReplies) ...[
+          Padding(
+            padding: const EdgeInsets.only(left: 58, bottom: 8),
+            child: InkWell(
+              onTap: () => setModalState(() {
+                if (isExpanded) expandedIds.remove(comment.id);
+                else expandedIds.add(comment.id);
+              }),
+              child: Row(
+                children: [
+                  Container(width: 40, height: 1, color: Colors.grey.shade300),
+                  const SizedBox(width: 12),
+                  Text(
+                    isExpanded ? "Sembunyikan balasan" : "Lihat balasan (${comment.replies.length})",
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (isExpanded)
+            Padding(
+              padding: const EdgeInsets.only(left: 42),
+              child: Column(
+                children: comment.replies.map((reply) => _buildCommentItem(reply, true, onRefresh, onReply, onEdit)).toList(),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCommentItem(
+    CommentModel comment, 
+    bool isReply, 
+    VoidCallback onRefresh,
+    Function(CommentModel) onReply,
+    Function(CommentModel) onEdit,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: isReply ? 14 : 18,
+            backgroundColor: const Color(0xFF3D5AFE),
+            child: Text((comment.userName ?? 'U')[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 12)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(comment.userName ?? 'User', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text(comment.createdAt.length > 10 ? comment.createdAt.substring(0, 10) : comment.createdAt, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                      ],
+                    ),
+                    _buildCommentMenu(comment, onEdit, onRefresh),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(comment.commentTextOnly, style: const TextStyle(fontSize: 14, height: 1.3)),
+                if (!isReply)
+                  GestureDetector(
+                    onTap: () => onReply(comment),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text("Balas", style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommentMenu(CommentModel comment, Function(CommentModel) onEdit, VoidCallback onRefresh) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+      padding: EdgeInsets.zero,
+      onSelected: (value) async {
+        if (value == 'edit') {
+          onEdit(comment);
+        } else if (value == 'delete') {
+          bool confirm = await _showConfirmDelete(context);
+          if (confirm) {
+            try {
+              await ApiService.deleteComment(comment.id);
+              onRefresh();
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e')));
+            }
+          }
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Edit')])),
+        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Hapus', style: TextStyle(color: Colors.red))])),
+      ],
+    );
+  }
+
+  Widget _buildCommentInput(
+    TextEditingController controller, 
+    bool isSending, 
+    CommentModel? replyingTo,
+    CommentModel? editingComment,
+    VoidCallback onCancel,
+    VoidCallback onSend,
+  ) {
+    bool isDirectAction = replyingTo != null || editingComment != null;
+    String actionText = editingComment != null ? "Mengedit komentar..." : "Membalas ${replyingTo?.userName}...";
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            if (isDirectAction)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 8, right: 8),
+                child: Row(
+                  children: [
+                    Icon(editingComment != null ? Icons.edit : Icons.reply, size: 16, color: const Color(0xFF3D5AFE)),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(actionText, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
+                    GestureDetector(onTap: onCancel, child: const Icon(Icons.cancel, size: 18, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(24)),
+                    child: TextField(
+                      controller: controller,
+                      maxLines: null,
+                      decoration: const InputDecoration(
+                        hintText: "Tambah komentar...",
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: isSending 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.send, color: Color(0xFF3D5AFE)),
+                  onPressed: isSending ? null : onSend,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _showConfirmDelete(BuildContext context) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Hapus Komentar?"),
+        content: const Text("Apakah Anda yakin ingin menghapus komentar ini?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Batal")),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Hapus", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    ) ?? false;
   }
   void _showFinishConfirmation(BuildContext context, LostFoundModel item) {
     showDialog(
@@ -740,5 +1077,54 @@ class _BarangPageState extends State<BarangPage> {
         );
       }
     }
+  }
+  void _showProfanityWarning(BuildContext context, List<String> detectedWords) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 8),
+            Text("Peringatan Komentar", style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Komentar Anda mengandung kata-kata yang tidak pantas:",
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade100),
+              ),
+              child: Text(
+                detectedWords.join(", "),
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Mohon gunakan bahasa yang lebih sopan agar tetap mematuhi standar komunitas kami.",
+              style: TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("SAYA MENGERTI", style: TextStyle(color: Color(0xFF3D5AFE), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 }

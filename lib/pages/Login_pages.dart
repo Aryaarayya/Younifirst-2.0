@@ -17,6 +17,9 @@ class _Login_pagesState extends State<Login_pages> {
   // State untuk loading
   bool _isLoading = false;
   
+  // State untuk hide/show password
+  bool _obscurePassword = true;
+  
   // Future untuk proses login api
   Future<bool> _loginProcess() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -174,7 +177,7 @@ class _Login_pagesState extends State<Login_pages> {
 
                 TextField(
                   controller: _passwordController,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     hintText: "Masukkan kata sandi Anda",
                     filled: true,
@@ -183,6 +186,17 @@ class _Login_pagesState extends State<Login_pages> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide(color: Colors.grey.shade400),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
                   ),
                 ),

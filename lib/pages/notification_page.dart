@@ -3,6 +3,7 @@ import 'package:younifirst_app/models/notification_model.dart';
 import 'package:younifirst_app/models/announcement_model.dart';
 import 'package:younifirst_app/services/notification_service.dart';
 import 'package:younifirst_app/services/api_services.dart';
+import 'package:younifirst_app/pages/barang/BarangDetail_pages.dart';
 import 'package:intl/intl.dart';
 
 class NotificationPage extends StatefulWidget {
@@ -191,11 +192,23 @@ class _NotificationPageState extends State<NotificationPage> {
 
     return InkWell(
       onTap: () {
-        if (item is NotificationModel && !item.isRead) {
-          NotificationService.markAsRead(item.id);
-          _loadAllNotifications();
+        if (item is NotificationModel) {
+          if (!item.isRead) {
+            NotificationService.markAsRead(item.id);
+            _loadAllNotifications();
+          }
+          
+          if (item.targetId != null && (item.type == 'post' || item.type == 'comment')) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BarangDetailPage(lostFoundId: item.targetId!),
+              ),
+            );
+          }
+        } else if (item is AnnouncementModel) {
+          _showAnnouncementDetail(item);
         }
-        // Handle announcement tap (e.g., show detail)
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -286,4 +299,112 @@ class _NotificationPageState extends State<NotificationPage> {
       ),
     );
   }
-}
+  void _showAnnouncementDetail(AnnouncementModel announcement) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (announcement.file != null)
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  child: Image.network(
+                    announcement.file!,
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 200,
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3D5AFE).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            "PENGUMUMAN",
+                            style: TextStyle(color: Color(0xFF3D5AFE), fontWeight: FontWeight.bold, fontSize: 10),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          DateFormat('dd MMM yyyy').format(announcement.createdAt),
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      announcement.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, letterSpacing: -0.5),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      announcement.content,
+                      style: TextStyle(color: Colors.grey.shade700, fontSize: 14, height: 1.6),
+                    ),
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.grey.shade200,
+                          child: const Icon(Icons.person, size: 16, color: Colors.grey),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              announcement.creatorName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            Text(
+                              announcement.creatorRole,
+                              style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3D5AFE),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text("TUTUP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

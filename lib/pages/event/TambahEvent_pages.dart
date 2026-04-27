@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:younifirst_app/services/api_services.dart';
 import 'package:younifirst_app/services/auth_service.dart';
+import 'package:younifirst_app/services/notification_service.dart';
 
 class TambahEventPage extends StatefulWidget {
   const TambahEventPage({super.key});
@@ -61,16 +62,86 @@ class _TambahEventPageState extends State<TambahEventPage> {
   }
 
   Future<void> _pickPoster() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1080,
-      maxHeight: 1080,
-      imageQuality: 85,
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Pilih Sumber Poster",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildSourceOption(
+                  icon: Icons.camera_alt_rounded,
+                  label: "Kamera",
+                  onTap: () {
+                    Navigator.pop(context);
+                    _handleImagePick(ImageSource.camera);
+                  },
+                ),
+                _buildSourceOption(
+                  icon: Icons.image_rounded,
+                  label: "Galeri",
+                  onTap: () {
+                    Navigator.pop(context);
+                    _handleImagePick(ImageSource.gallery);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
     );
-    if (image != null) {
-      final bytes = await image.readAsBytes();
-      setState(() => _selectedImageBytes = bytes);
+  }
+
+  Future<void> _handleImagePick(ImageSource source) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() => _selectedImageBytes = bytes);
+      }
+    } catch (e) {
+      _showSnackBar('Gagal mengambil gambar: $e');
     }
+  }
+
+  Widget _buildSourceOption({required IconData icon, required String label, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: const Color(0xFF3D5AFE)),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _selectDate(TextEditingController controller) async {
@@ -186,9 +257,23 @@ class _TambahEventPageState extends State<TambahEventPage> {
       final success = await ApiService.createEvent(data, _selectedImageBytes);
       
       if (success) {
-        _showSnackBar('Event berhasil diposting!', isError: false);
-        await Future.delayed(const Duration(seconds: 1));
-        Navigator.pop(context, true);
+        // Tambahkan ke notifikasi lokal
+        await NotificationService.addNotification(
+          'Event Berhasil Dibuat', 
+          'Event "${_titleController.text}" telah berhasil dipublikasikan.',
+          type: 'post'
+        );
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Tampilkan feedback elegan
+        await _showSuccessFeedback();
+        
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
       }
       
     } catch (e) {
@@ -233,12 +318,14 @@ class _TambahEventPageState extends State<TambahEventPage> {
         centerTitle: true,
       ),
 
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // 🔥 UPLOAD POSTER
               GestureDetector(
                 onTap: _pickPoster,
@@ -434,7 +521,91 @@ class _TambahEventPageState extends State<TambahEventPage> {
                 ),
               ),
               
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+      if (_isLoading)
+        Container(
+          color: Colors.black.withOpacity(0.5),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3D5AFE)),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Mempublikasikan event...",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Mohon tunggu sebentar",
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+    ],
+  ),
+);
+  }
+
+  Future<void> _showSuccessFeedback() async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(30.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 60),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                "Event Berhasil Dibuat!",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "Event Anda telah berhasil dipublikasikan. Mahasiswa lain sekarang dapat melihat dan mendaftar.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 14, height: 1.5),
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3D5AFE),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text("TUTUP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
             ],
           ),
         ),

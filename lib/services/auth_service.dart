@@ -155,4 +155,62 @@ class AuthService {
       }
     }
   }
+
+  // Method untuk lupa password (kirim OTP)
+  static Future<void> forgotPassword(String email) async {
+    final url = Uri.parse(baseUrl.replaceFirst('/login', '/password/forgot'));
+    
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+
+    if (response.statusCode != 200) {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Gagal mengirim OTP');
+    }
+  }
+
+  // Method untuk verifikasi OTP
+  static Future<void> verifyOtp(String email, String otp) async {
+    final url = Uri.parse(baseUrl.replaceFirst('/login', '/password/verify'));
+    
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: jsonEncode({'email': email, 'otp': otp}),
+    );
+
+    if (response.statusCode != 200) {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'OTP tidak valid');
+    }
+  }
+
+  // Method untuk reset password
+  static Future<void> resetPassword({
+    required String email,
+    required String otp,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    final url = Uri.parse(baseUrl.replaceFirst('/login', '/password/reset'));
+    
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'otp': otp,
+        'password': password,
+        'password_confirmation': passwordConfirmation,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Gagal reset password');
+    }
+  }
 }

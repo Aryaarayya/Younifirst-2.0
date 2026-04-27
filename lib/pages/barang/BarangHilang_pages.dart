@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:younifirst_app/services/api_services.dart';
+import 'package:younifirst_app/services/notification_service.dart';
+import 'package:younifirst_app/utils/profanity_filter.dart';
 
 class BarangHilangPage extends StatefulWidget {
   @override
@@ -20,12 +22,87 @@ class _BarangHilangPageState extends State<BarangHilangPage> {
   bool _isLoading = false;
 
   Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Pilih Sumber Gambar",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildSourceOption(
+                  icon: Icons.camera_alt_rounded,
+                  label: "Kamera",
+                  onTap: () {
+                    Navigator.pop(context);
+                    _handleImagePick(ImageSource.camera);
+                  },
+                ),
+                _buildSourceOption(
+                  icon: Icons.image_rounded,
+                  label: "Galeri",
+                  onTap: () {
+                    Navigator.pop(context);
+                    _handleImagePick(ImageSource.gallery);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleImagePick(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 80, // Reduce size for better upload performance
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _imageFile = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil gambar: $e')),
+      );
     }
+  }
+
+  Widget _buildSourceOption({required IconData icon, required String label, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: const Color(0xFF3D5AFE)),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _submitData() async {
@@ -34,12 +111,24 @@ class _BarangHilangPageState extends State<BarangHilangPage> {
       return;
     }
 
+    // ── PROFANITY FILTER CHECK ──
+    List<String> badWordsInName = ProfanityFilter.check(_namaBarangController.text);
+    List<String> badWordsInDesc = ProfanityFilter.check(_deskripsiController.text);
+    List<String> badWordsInLoc = ProfanityFilter.check(_lokasiController.text);
+
+    if (badWordsInName.isNotEmpty || badWordsInDesc.isNotEmpty || badWordsInLoc.isNotEmpty) {
+      Set<String> allBadWords = {...badWordsInName, ...badWordsInDesc, ...badWordsInLoc};
+      _showProfanityWarning(allBadWords.toList());
+      return;
+    }
+    // ────────────────────────────
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      bool result = await ApiService.addLostAndFound(
+      String? resultId = await ApiService.addLostAndFound(
         type: _selectedKategori,
         itemName: _namaBarangController.text,
         location: _lokasiController.text,
@@ -47,9 +136,25 @@ class _BarangHilangPageState extends State<BarangHilangPage> {
         imageFile: _imageFile,
       );
 
-      if (result) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil memposting')));
-        Navigator.pop(context, true); // return true to refresh list
+      if (resultId != null) {
+        // Tambahkan ke notifikasi lokal
+        await NotificationService.addNotification(
+          'Postingan Berhasil', 
+          'Barang "${_namaBarangController.text}" telah berhasil diposting di Lost & Found.',
+          type: 'post',
+          targetId: resultId,
+        );
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Tampilkan feedback elegan
+        await _showSuccessFeedback();
+        
+        if (mounted) {
+          Navigator.pop(context, true); // return true to refresh list
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memposting: $e')));
@@ -60,6 +165,56 @@ class _BarangHilangPageState extends State<BarangHilangPage> {
         });
       }
     }
+  }
+
+  void _showProfanityWarning(List<String> detectedWords) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            const SizedBox(width: 8),
+            const Text("Peringatan Konten", style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Postingan Anda mengandung kata-kata yang tidak pantas atau dilarang:",
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade100),
+              ),
+              child: Text(
+                detectedWords.join(", "),
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Mohon revisi kata-kata tersebut agar tetap sopan dan mematuhi standar komunitas kami sebelum memposting.",
+              style: TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("SAYA MENGERTI", style: TextStyle(color: Color(0xFF3D5AFE), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -79,12 +234,15 @@ class _BarangHilangPageState extends State<BarangHilangPage> {
         ),
         centerTitle: true,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   // ... (isi kolom sama)
               // Kategori
               const Text("Kategori Lost and Found", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 4),
@@ -205,6 +363,90 @@ class _BarangHilangPageState extends State<BarangHilangPage> {
                 ),
               ),
               const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+      if (_isLoading)
+        Container(
+          color: Colors.black.withOpacity(0.5),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3D5AFE)),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Menyebarkan informasi...",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Mohon tunggu sebentar",
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+    ],
+  ),
+);
+  }
+
+  Future<void> _showSuccessFeedback() async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(30.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 60),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                "Berhasil Diposting!",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "Barang Anda telah berhasil didaftarkan ke dalam sistem. Mahasiswa lain sekarang dapat melihat informasi ini.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 14, height: 1.5),
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3D5AFE),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text("LIHAT POSTINGAN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
             ],
           ),
         ),
