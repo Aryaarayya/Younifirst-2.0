@@ -6,6 +6,7 @@ import 'package:younifirst_app/pages/event/TambahEvent_pages.dart';
 import 'package:younifirst_app/pages/event/UpdateEvent_pages.dart';
 import 'package:younifirst_app/pages/event/EventDetail_pages.dart';
 import 'package:younifirst_app/pages/event/PopularEvent_pages.dart';
+import 'package:younifirst_app/widgets/notification_bell.dart';
 
 class EventPage extends StatefulWidget {
   @override
@@ -17,6 +18,7 @@ class _EventPageState extends State<EventPage> {
   List<EventModel> events = [];
   bool isLoading = true;
   String errorMessage = "";
+  String _selectedCategory = "Semua";
 
   @override
   void initState() {
@@ -131,34 +133,7 @@ class _EventPageState extends State<EventPage> {
                   ),
                 ],
               ),
-              Stack(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white30),
-                    ),
-                    child: const Icon(Icons.notifications_none,
-                        color: Colors.white),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Text(
-                        "2",
-                        style: TextStyle(color: Colors.white, fontSize: 10),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              NotificationBell(iconColor: Colors.white),
             ],
           ),
           const SizedBox(height: 20),
@@ -264,55 +239,22 @@ class _EventPageState extends State<EventPage> {
           itemCount: popularEvents.length,
           itemBuilder: (context, index) {
             final ev = popularEvents[index];
-            return _buildEventCard(
-              id: ev.id,
-              imageUrl: ev.imageUrl, // Bisa ditambahkan network logic jika url valid
-              title: ev.title,
-              date: ev.date,
-              time: ev.time,
-              location: ev.location,
-              likes: ev.likesCount,
-              onDelete: () => _deleteEvent(ev.id),
-            );
+              return _buildEventCard(
+                id: ev.id,
+                imageUrl: ev.imageUrl, // Bisa ditambahkan network logic jika url valid
+                title: ev.title,
+                date: ev.date,
+                time: ev.time,
+                location: ev.location,
+                likes: ev.likesCount,
+              );
           },
         ),
       ),
     );
   }
 
-  Future<void> _deleteEvent(String id) async {
-    bool confirm = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus Event'),
-        content: const Text('Apakah Anda yakin ingin menghapus event ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    ) ?? false;
 
-    if (!confirm) return;
-
-    try {
-      await EventApiService.deleteEvent(id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Event berhasil dihapus')),
-      );
-      fetchEvents();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-      );
-    }
-  }
 
   Widget _buildEventCard({
     required String id,
@@ -322,7 +264,6 @@ class _EventPageState extends State<EventPage> {
     required String time,
     required String location,
     required String likes,
-    required VoidCallback onDelete,
   }) {
     // Mengecek apakah image_url berupa http link atau lokal asset
     bool isNetworkImage = imageUrl.toLowerCase().startsWith('http');
@@ -449,7 +390,6 @@ class _EventPageState extends State<EventPage> {
                     ),
                     Row(
                       children: [
-                        // Ikon delete dihapus
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 8),
@@ -519,43 +459,50 @@ class _EventPageState extends State<EventPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          _buildChip("Semua", Icons.check_circle, true),
-          _buildChip("Kompetisi", Icons.emoji_events_outlined, false),
-          _buildChip("Seminar", Icons.mic_none, false),
-          _buildChip("Pameran", Icons.palette_outlined, false),
+          _buildChip("Semua", Icons.check_circle, _selectedCategory == "Semua"),
+          _buildChip("Kompetisi", Icons.emoji_events_outlined, _selectedCategory == "Kompetisi"),
+          _buildChip("Seminar", Icons.mic_none, _selectedCategory == "Seminar"),
+          _buildChip("Pameran", Icons.palette_outlined, _selectedCategory == "Pameran"),
         ],
       ),
     );
   }
 
   Widget _buildChip(String label, IconData icon, bool isSelected) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF3D5AFE) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isSelected ? const Color(0xFF3D5AFE) : Colors.blue.shade200,
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedCategory = label;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF3D5AFE) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF3D5AFE) : Colors.blue.shade200,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: isSelected ? Colors.white : const Color(0xFF3D5AFE),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 16,
               color: isSelected ? Colors.white : const Color(0xFF3D5AFE),
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF3D5AFE),
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -571,8 +518,21 @@ class _EventPageState extends State<EventPage> {
               icon: Icon(Icons.refresh), onPressed: fetchEvents)); 
     }
 
-    if (events.isEmpty) {
-      return const Center(child: Text("Tidak ada data."));
+    List<EventModel> filteredEvents = List.from(events);
+    if (_selectedCategory != "Semua") {
+      final categoryMapping = {
+        'Kompetisi': '1',
+        'Seminar': '2',
+        'Pameran': '3',
+        'Turnamen': '4',
+        'Konser': '5',
+      };
+      final catId = categoryMapping[_selectedCategory];
+      filteredEvents = events.where((e) => e.categoryId == catId).toList();
+    }
+
+    if (filteredEvents.isEmpty) {
+      return const Center(child: Text("Tidak ada data untuk kategori ini."));
     }
 
     return Padding(
@@ -587,9 +547,9 @@ class _EventPageState extends State<EventPage> {
           mainAxisSpacing: 16,
           childAspectRatio: 0.65,
         ),
-        itemCount: events.length,
+        itemCount: filteredEvents.length,
         itemBuilder: (context, index) {
-          final ev = events[index];
+          final ev = filteredEvents[index];
           return _buildMiniEventCard(
             id: ev.id,
             imageUrl: ev.imageUrl,
@@ -599,7 +559,6 @@ class _EventPageState extends State<EventPage> {
             location: ev.location,
             likes: ev.likesCount,
             liked: int.tryParse(ev.likesCount) != null && int.parse(ev.likesCount) > 0, // dummy logic for liked statis
-            onDelete: () => _deleteEvent(ev.id),
           );
         },
       ),
@@ -615,7 +574,6 @@ class _EventPageState extends State<EventPage> {
     required String location,
     required String likes,
     required bool liked,
-    required VoidCallback onDelete,
   }) {
     bool isSkeleton = title == "Loading...";
     bool isNetworkImage = imageUrl.toLowerCase().startsWith('http');
@@ -681,66 +639,7 @@ class _EventPageState extends State<EventPage> {
                             )),
                 ),
               ),
-              if (!isSkeleton)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
-                      shape: BoxShape.circle,
-                    ),
-                    child: PopupMenuButton<String>(
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.more_vert, size: 20, color: Colors.black87),
-                      onSelected: (value) async {
-                        if (value == 'update') {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => UpdateEventPage(eventId: id),
-                            ),
-                          );
-                          if (result == true) {
-                            fetchEvents();
-                          }
-                        } else if (value == 'bagikan') {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Bagikan belum tersedia")));
-                        } else if (value == 'laporkan') {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Laporkan belum tersedia")));
-                        } else if (value == 'hapus') {
-                          onDelete();
-                        }
-                      },
-                      itemBuilder: (BuildContext context) => [
-                        const PopupMenuItem(
-                          value: 'update',
-                          child: Row(
-                            children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Update Event')],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'bagikan',
-                          child: Row(
-                            children: [Icon(Icons.share, size: 18), SizedBox(width: 8), Text('Bagikan')],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'laporkan',
-                          child: Row(
-                            children: [Icon(Icons.flag_outlined, size: 18), SizedBox(width: 8), Text('Laporkan')],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'hapus',
-                          child: Row(
-                            children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Hapus Event', style: TextStyle(color: Colors.red))],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+
             ],
           ),
           Padding(

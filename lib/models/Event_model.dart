@@ -6,6 +6,7 @@ class EventModel {
   final String location;
   final String imageUrl;
   final String likesCount;
+  final String categoryId;
 
   EventModel({
     required this.id,
@@ -15,6 +16,7 @@ class EventModel {
     required this.location,
     required this.imageUrl,
     required this.likesCount,
+    required this.categoryId,
   });
 
   factory EventModel.fromJson(Map<String, dynamic> json) {
@@ -55,6 +57,7 @@ class EventModel {
       location: json['location'] ?? 'Lokasi tidak diketahui',
       imageUrl: finalImageUrl,
       likesCount: json['likes_count']?.toString() ?? '0',
+      categoryId: json['category_id']?.toString() ?? '',
     );
   }
 }

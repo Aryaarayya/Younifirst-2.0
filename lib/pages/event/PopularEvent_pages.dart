@@ -50,14 +50,18 @@ class _PopularEventPageState extends State<PopularEventPage> {
     if (_selectedCategory == "Semua") {
       filteredEvents = List.from(events);
     } else {
-      // Disini kita memfilter berdasarkan nama kategori event
-      // Catatan: Model saat ini tidak mendeskripsikan secara eksplisit nama kategorinya selain dari backend.
-      // Jika backend tidak menyediakan nama kategori di EventModel, filter sementara dicocokkan ke properti yg relevan
-      // atau biarkan semua muncul jika data kategori belum komplit di API.
+      final categoryMapping = {
+        'Kompetisi': '1',
+        'Seminar': '2',
+        'Pameran': '3',
+        'Turnamen': '4',
+        'Konser': '5',
+      };
+      final catId = categoryMapping[_selectedCategory];
+      
       filteredEvents = events.where((e) {
-         // Dummy logic: karena EventModel standar belum memuat 'category_name' secara spesifik dengan baik, 
-         // kita bisa abaikan filter ketat atau cek title. (Untuk implementasi nyata, model harus menangkap category name).
-         return true; // Ganti jika 'category' ditambahkan di model
+         if (catId != null && e.categoryId == catId) return true;
+         return false;
       }).toList();
     }
   }

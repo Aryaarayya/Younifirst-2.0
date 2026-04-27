@@ -39,12 +39,72 @@ class EventApiService {
           print('====================================');
         }
 
-        return jsonList.map((data) => EventModel.fromJson(data)).toList();
+        // Filter out pending events by checking multiple possible status keys
+        var filteredList = jsonList.where((data) {
+          // Jangan tampilkan jika deleted_at tidak null (sudah dihapus / soft-deleted)
+          if (data['deleted_at'] != null) {
+            return false;
+          }
+
+          final statusVal = data['status'] ?? data['event_status'] ?? data['approval_status'] ?? data['is_published'] ?? data['is_approved'];
+          final status = statusVal?.toString().toLowerCase().trim();
+          
+          // Jika status adalah 'pending', '0', 'menunggu', atau 'false', maka disembunyikan
+          if (status == 'pending' || status == '0' || status == 'false' || status == 'menunggu' || status == 'review' || status == 'cancelled') {
+            return false;
+          }
+          return true; // Tampilkan yang lain
+        }).toList();
+
+        return filteredList.map((data) => EventModel.fromJson(data)).toList();
       } else {
         throw Exception('Status ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
       throw Exception('Gagal menghubungi server: $e');
+    }
+  }
+
+  static Future<List<EventModel>> getMyPendingEvents() async {
+    final url = Uri.parse('$baseUrl?status=pending');
+    try {
+      Map<String, String> headers = {
+        'ngrok-skip-browser-warning': '69420',
+        'Accept': 'application/json',
+      };
+
+      if (AuthService.authToken != null) {
+        headers['Authorization'] = 'Bearer ${AuthService.authToken}';
+      }
+
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final dynamic decodedData = jsonDecode(response.body);
+        List<dynamic> jsonList = [];
+
+        if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
+          jsonList = decodedData['data'];
+        } else if (decodedData is List) {
+          jsonList = decodedData;
+        }
+
+        final myUserId = AuthService.userId;
+        
+        // Hanya ambil yang statusnya pending dan dibuat oleh user ini
+        var filteredList = jsonList.where((data) {
+          if (data['deleted_at'] != null) return false;
+          final createdBy = data['created_by']?.toString();
+          return createdBy == myUserId;
+        }).toList();
+
+        return filteredList.map((data) => EventModel.fromJson(data)).toList();
+      } else {
+        throw Exception('Status ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print("Gagal mengambil pending events: $e");
+      return [];
     }
   }
 
@@ -79,7 +139,22 @@ class EventApiService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return true;
       } else {
-        throw Exception('Status ${response.statusCode}: ${response.body}');
+        String errMsg = 'Terjadi kesalahan pada server.';
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded['message'] != null) {
+            errMsg = decoded['message'];
+          }
+          if (decoded['errors'] != null) {
+            final errors = decoded['errors'] as Map<String, dynamic>;
+            if (errors.isNotEmpty) {
+              errMsg = errors.values.first[0].toString();
+            }
+          }
+        } catch (_) {
+          errMsg = 'Status ${response.statusCode}: ${response.body}';
+        }
+        throw Exception(errMsg);
       }
     } catch (e) {
       throw Exception('Gagal membuat event: $e');

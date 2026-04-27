@@ -39,6 +39,44 @@ class _EventDetailPageState extends State<EventDetailPage> {
     }
   }
 
+  Future<void> _deleteEvent() async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Event'),
+        content: const Text('Apakah Anda yakin ingin menghapus event ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirm) return;
+
+    try {
+      await EventApiService.deleteEvent(widget.eventId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Event berhasil dihapus')),
+        );
+        Navigator.pop(context, true); // Return true so previous page can refresh
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
+      }
+    }
+  }
+
   String _formatDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return "Tanggal Belum Ditentukan";
     try {
@@ -138,23 +176,40 @@ class _EventDetailPageState extends State<EventDetailPage> {
             actions: [
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: InkWell(
-                  onTap: () async {
-                    // Navigate to Update page
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => UpdateEventPage(eventId: widget.eventId),
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), shape: BoxShape.circle),
+                  child: PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+                    onSelected: (value) async {
+                      if (value == 'update') {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => UpdateEventPage(eventId: widget.eventId),
+                          ),
+                        );
+                        if (result == true) {
+                          _fetchEventDetail();
+                        }
+                      } else if (value == 'hapus') {
+                        _deleteEvent();
+                      }
+                    },
+                    itemBuilder: (BuildContext context) => [
+                      const PopupMenuItem(
+                        value: 'update',
+                        child: Row(
+                          children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Update Event')],
+                        ),
                       ),
-                    );
-                    if (result == true) {
-                      _fetchEventDetail(); // Refresh if updated
-                    }
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), shape: BoxShape.circle),
-                    padding: const EdgeInsets.all(8),
-                    child: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+                      const PopupMenuItem(
+                        value: 'hapus',
+                        child: Row(
+                          children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Hapus Event', style: TextStyle(color: Colors.red))],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
