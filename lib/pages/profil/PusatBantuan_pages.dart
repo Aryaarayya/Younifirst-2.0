@@ -112,7 +112,11 @@ class PusatBantuanPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
+ team
+                      color: Color(0xFF3D5AF1).withOpacity(0.3),
+
                       color: Color(0xFF3D5AF1).withValues(alpha: 0.3),
+ main
                       blurRadius: 15,
                       offset: Offset(0, 8),
                     )
@@ -132,7 +136,11 @@ class PusatBantuanPage extends StatelessWidget {
                           ),
                           Text(
                             "Hubungi admin via WhatsApp",
+ team
+                            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+ main
                           ),
                         ],
                       ),
@@ -196,4 +204,8 @@ class PusatBantuanPage extends StatelessWidget {
       ),
     );
   }
+ team
 }
+
+}
+ main

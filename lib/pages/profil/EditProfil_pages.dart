@@ -1,7 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+ team
+import 'package:younifirst_app/services/api_services.dart';
+
 import 'package:younifirst_app/services/lostandfound_api_service.dart';
+ main
 
 class EditProfilPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -48,7 +52,11 @@ class _EditProfilPageState extends State<EditProfilPage> {
         });
       }
     } catch (e) {
+ team
+      print("Error picking image: $e");
+
       debugPrint("Error picking image: $e");
+ main
     }
   }
 
@@ -153,7 +161,11 @@ class _EditProfilPageState extends State<EditProfilPage> {
                   children: [
                     CircleAvatar(
                       radius: 50,
+ team
+                      backgroundColor: Color(0xFF3D5AF1).withOpacity(0.1),
+
                       backgroundColor: Color(0xFF3D5AF1).withValues(alpha: 0.1),
+ main
                       backgroundImage: _imageFile != null 
                           ? FileImage(_imageFile!) 
                           : (widget.userData['photo'] != null 

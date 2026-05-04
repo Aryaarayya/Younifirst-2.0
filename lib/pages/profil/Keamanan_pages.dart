@@ -25,9 +25,15 @@ class KeamananPage extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
+ team
+                color: Colors.blue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.blue.withOpacity(0.1)),
+
                 color: Colors.blue.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
+ main
               ),
               child: Row(
                 children: [
@@ -67,7 +73,11 @@ class KeamananPage extends StatelessWidget {
               "Verifikasi Dua Langkah",
               "Lapisan keamanan tambahan",
               () {},
+ team
+              trailing: Switch(value: true, onChanged: (v){}, activeColor: Color(0xFF3D5AF1)),
+
               trailing: Switch(value: true, onChanged: (v){}, activeThumbColor: Color(0xFF3D5AF1)),
+ main
             ),
             buildSecurityItem(
               Icons.devices_outlined,
@@ -105,4 +115,8 @@ class KeamananPage extends StatelessWidget {
       ),
     );
   }
+ team
 }
+
+}
+ main
