@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+ profil
 import 'package:younifirst_app/models/Event_model.dart';
 import 'package:younifirst_app/models/lost_found_model.dart';
 import 'package:younifirst_app/services/lostandfound_api_service.dart';
 import 'package:younifirst_app/pages/barang/BarangDetail_pages.dart';
 import 'package:younifirst_app/widgets/notification_bell.dart';
+
+import 'package:younifirst_app/pages/event/PopularEvent_pages.dart';
+ main
 
 class HomePage extends StatefulWidget {
   @override
@@ -103,6 +107,7 @@ class _HomePageState extends State<HomePage> {
                           else
                             ..._lostFoundItems.take(2).map((item) => _buildFeedCardFromModel(item)),
 
+ profil
                           // Popular Events
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -126,6 +131,32 @@ class _HomePageState extends State<HomePage> {
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                     ),
+
+                        // Popular Events
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                "Popular Events 🔥",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(context, MaterialPageRoute(builder: (context) => PopularEventPage()));
+                                },
+                                child: const Text(
+                                  "LIHAT SEMUA",
+                                  style: TextStyle(
+                                    color: Color(0xFF3D5AFE),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+ main
                                   ),
                                 ),
                               ],
@@ -368,8 +399,13 @@ class _HomePageState extends State<HomePage> {
     }
 
     return SizedBox(
+ profil
       height: 240,
       child: ListView.builder(
+
+      height: 265, // Diubah menjadi lebih tinggi 15 pixel agar tak terpotong container
+      child: ListView(
+ main
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _events.length,
@@ -416,6 +452,7 @@ class _HomePageState extends State<HomePage> {
                 errorBuilder: (context, error, stackTrace) => Container(height: 110, color: Colors.grey[200]),
               ),
             ),
+ profil
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
@@ -436,6 +473,61 @@ class _HomePageState extends State<HomePage> {
                         child: Text(
                           event.date,
                           style: const TextStyle(color: Colors.black54, fontSize: 10),
+
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.calendar_today, size: 12, color: Color(0xFF3D5AFE)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        time.isNotEmpty ? "$date • $time" : date,
+                        style: const TextStyle(color: Colors.black54, fontSize: 10),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 12, color: Color(0xFF3D5AFE)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.black54, fontSize: 10),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.favorite, size: 16, color: liked ? Colors.red : Colors.grey),
+                        const SizedBox(width: 4),
+                        Text(
+                          likes,
+                          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 11),
+ main
                         ),
                       ),
                     ],
