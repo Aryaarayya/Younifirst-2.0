@@ -4,6 +4,8 @@ import 'package:younifirst_app/services/event_api_service.dart';
 import 'package:younifirst_app/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:younifirst_app/pages/announcement/Announcement_pages.dart';
+import 'package:younifirst_app/services/announcement_api_service.dart';
 
 class TambahEventPage extends StatefulWidget {
   @override
@@ -156,6 +158,19 @@ class _TambahEventPageState extends State<TambahEventPage> {
       final startDateTime = "${_dateStartController.text} ${_timeStartController.text}:00";
       final endDateTime = "${_dateEndController.text} ${_timeEndController.text}:00";
 
+      // Validasi agar tanggal selesai tidak lebih awal dari tanggal mulai
+      try {
+        DateTime start = DateTime.parse(startDateTime);
+        DateTime end = DateTime.parse(endDateTime);
+        if (end.isBefore(start)) {
+          setState(() => _isLoading = false);
+          _showSnackBar("Tanggal dan Waktu Selesai tidak boleh lebih awal dari Tanggal Mulai!");
+          return;
+        }
+      } catch (e) {
+        print("Gagal parsing date untuk validasi: $e");
+      }
+
       // Mapping kategori ke ID
       final Map<String, String> categoryMapping = {
         'Kompetisi': '1',
@@ -187,9 +202,104 @@ class _TambahEventPageState extends State<TambahEventPage> {
       final success = await EventApiService.createEvent(data, _selectedImageBytes);
       
       if (success) {
-        _showSnackBar('Event berhasil diposting!', isError: false);
-        await Future.delayed(const Duration(seconds: 1));
-        Navigator.pop(context, true);
+        // Buat notifikasi/pengumuman sementara di backend (karena backend belum punya tabel notif khusus)
+        try {
+          await AnnouncementApiService.createAnnouncement(
+            title: 'Pengajuan Event: ${_titleController.text}',
+            content: 'Event Anda sedang ditinjau oleh admin.',
+            category: 'event',
+            createdBy: _userId ?? '',
+          );
+        } catch (e) {
+          print('Gagal membuat notifikasi otomatis: $e');
+        }
+
+        if (mounted) {
+          // Tampilkan custom pop-up dialog sesuai desain (Gambar 1)
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext dialogContext) {
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                backgroundColor: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Menggunakan icon centang besar sebagai pengganti ilustrasi
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0F3FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check_circle,
+                          size: 80,
+                          color: Color(0xFF3D5AFE),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Pengajuan Event Berhasil\nDikirim',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Event Anda telah berhasil dikirim dan sedang dalam proses peninjauan oleh admin. Event akan dipublikasikan setelah disetujui.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3D5AFE),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(dialogContext); // Tutup dialog
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const AnnouncementPage()),
+                            );
+                          },
+                          child: const Text(
+                            'Mengerti',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        }
       }
       
     } catch (e) {
