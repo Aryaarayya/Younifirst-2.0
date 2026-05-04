@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:younifirst_app/services/team_api_service.dart';
+import 'package:younifirst_app/services/auth_service.dart';
+import 'package:younifirst_app/pages/announcement/Announcement_pages.dart';
+import 'package:younifirst_app/services/announcement_api_service.dart';
 
 class TambahTeamsPage extends StatefulWidget {
   @override
@@ -41,10 +44,107 @@ class _TambahTeamsPageState extends State<TambahTeamsPage> {
 
     try {
       await TeamApiService.createTeam(data);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tim berhasil dibuat!')));
-      if (mounted) Navigator.pop(context);
+
+      // Buat announcement otomatis seperti halaman event
+      try {
+        await AnnouncementApiService.createAnnouncement(
+          title: 'Pengajuan Tim: ${_namaTimController.text}',
+          content: 'Tim Anda sedang ditinjau oleh admin.',
+          category: 'team',
+          createdBy: AuthService.loggedInUserId ?? '',
+        );
+      } catch (_) {}
+
+      if (!mounted) return;
+
+      // Tampilkan dialog sukses, lalu arahkan ke AnnouncementPage
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            backgroundColor: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF0F3FF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      size: 80,
+                      color: Color(0xFF3D5AFE),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Pengajuan Tim Berhasil\nDikirim',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Tim Anda telah berhasil dikirim dan sedang dalam proses peninjauan oleh admin. Tim akan dipublikasikan setelah disetujui.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.black54,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF3D5AFE),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(dialogContext); // Tutup dialog
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const AnnouncementPage()),
+                        );
+                      },
+                      child: const Text(
+                        'Mengerti',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -174,11 +274,11 @@ class _TambahTeamsPageState extends State<TambahTeamsPage> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.6))
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.6))
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.6))
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.6))
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -201,11 +301,11 @@ class _TambahTeamsPageState extends State<TambahTeamsPage> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.6))
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.6))
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.6))
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.6))
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
