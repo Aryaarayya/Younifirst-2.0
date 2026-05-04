@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:younifirst_app/services/api_services.dart';
+import 'package:younifirst_app/services/lostandfound_api_service.dart';
 import 'package:younifirst_app/services/auth_service.dart';
 import 'package:younifirst_app/pages/Login_pages.dart';
 import 'package:younifirst_app/pages/profil/EditProfil_pages.dart';
@@ -34,7 +34,7 @@ class _ProfilPageState extends State<ProfilPage> {
       setState(() {
         _isLoading = false;
       });
-      print("Error fetching user data: $e");
+      debugPrint("Error fetching user data: $e");
     }
   }
 
@@ -83,7 +83,7 @@ class _ProfilPageState extends State<ProfilPage> {
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withOpacity(0.05),
+                        color: Colors.blue.withValues(alpha: 0.05),
                         blurRadius: 20,
                         offset: Offset(0, 10),
                       )
@@ -248,7 +248,7 @@ class _ProfilPageState extends State<ProfilPage> {
       leading: Container(
         padding: EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: isLogout ? Colors.red.withOpacity(0.1) : Color(0xFF3D5AF1).withOpacity(0.1),
+          color: isLogout ? Colors.red.withValues(alpha: 0.1) : Color(0xFF3D5AF1).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: isLogout ? Colors.red : Color(0xFF3D5AF1), size: 20),

@@ -98,7 +98,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
         ),
         value: value,
         onChanged: onChanged,
-        activeColor: Color(0xFF3D5AF1),
+        activeThumbColor: Color(0xFF3D5AF1),
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
